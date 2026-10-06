@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────── Auth.js (Prisma adapter) ─────────────────────────
+
+model User {
+  id             String           @id @default(cuid())
+  name           String
+  email          String           @unique
+  emailVerified  DateTime?
+  image          String?
+  passwordHash   String?
+  /// Theme chosen while logged in; null = never chosen (follow the cookie / app default).
+  theme          ThemePreference?
+  /// 1 = user, 2 = chef, 10 = moderator, 100 = admin. CHECK constraint in the migration.
+  privilegeLevel Int              @default(1)
+  /// Chefs and up can hide their profile, recipes and reviews from everyone
+  /// except themselves and moderators/admins.
+  isPrivate      Boolean          @default(false)
+  /// Set while banned: the account becomes read-only.
+  bannedAt       DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  recipes  Recipe[]
+  reviews  Review[]
+  votes    ReviewVote[]
+  likes    RecipeLike[]
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+enum ThemePreference {
+  DARK
+  LIGHT
+}
+
+// ───────────────────────────────── Recipes ─────────────────────────────────
+
+enum Label {
+  VEGAN
+  VEGETARIAN
+  GLUTEN_FREE
+  DAIRY_FREE
+  SPICY
+  DESSERT
+  BREAKFAST
+  QUICK
+}
+
+model Recipe {
+  id             String   @id @default(cuid())
+  title          String
+  description    String
+  /// BR-2: CHECK ("cookingMinutes" > 0) is added in the migration SQL.
+  cookingMinutes Int
+  servings       Int?
+  labels         Label[]
+  videoUrl       String?
+  authorId       String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  author      User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  images      RecipeImage[]
+  ingredients Ingredient[]
+  steps       Step[]
+  reviews     Review[]
+  likes       RecipeLike[]
+
+  @@index([createdAt(sort: Desc), id])
+  @@index([authorId])
+  @@index([labels], type: Gin)
+}
+
+model RecipeImage {
+  id       String @id @default(cuid())
+  recipeId String
+  url      String
+  position Int
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, position])
+}
+
+model Ingredient {
+  id       String  @id @default(cuid())
+  recipeId String
+  position Int
+  name     String
+  quantity Float?
+  unit     String?
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, position])
+}
+
+model Step {
+  id       String @id @default(cuid())
+  recipeId String
+  position Int
+  text     String
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, position])
+}
+
+// ───────────────────────────── Reviews & votes ─────────────────────────────
+
+model Review {
+  id          String    @id @default(cuid())
+  recipeId    String
+  userId      String
+  /// BR-6: CHECK ("rating" BETWEEN 1 AND 5) is added in the migration SQL.
+  rating      Int
+  /// null means "no comment": the rating counts but the review is not listed (BR-9).
+  comment     String?
+  createdAt   DateTime  @default(now())
+  editedAt    DateTime?
+  /// Set when a moderator edited the comment.
+  moderatedAt DateTime?
+
+  recipe Recipe       @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  votes  ReviewVote[]
+
+  // BR-7: one review per user per recipe.
+  @@unique([recipeId, userId])
+}
+
+enum VoteType {
+  LIKE
+  DISLIKE
+}
+
+model ReviewVote {
+  reviewId  String
+  userId    String
+  type      VoteType
+  createdAt DateTime @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // BR-11: one vote per user per review.
+  @@id([reviewId, userId])
+}
+
+// ──────────────────────────────── Likes ────────────────────────────────
+
+/// A heart on a recipe: one per user per recipe (separate from star ratings).
+model RecipeLike {
+  recipeId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([recipeId, userId])
+  @@index([userId])
+}

@@ -1,0 +1,130 @@
+import "dotenv/config";
+import { randomUUID } from "node:crypto";
+import bcrypt from "bcryptjs";
+import pg from "pg";
+
+/** Direct database access for test setup that has no UI (e.g. the first admin). */
+async function withDb<T>(fn: (db: pg.Client) => Promise<T>): Promise<T> {
+  const db = new pg.Client({ connectionString: process.env.DATABASE_URL });
+  await db.connect();
+  try {
+    return await fn(db);
+  } finally {
+    await db.end();
+  }
+}
+
+export function setLevel(email: string, level: number) {
+  return withDb((db) =>
+    db.query(`UPDATE "User" SET "privilegeLevel" = $2 WHERE email = $1`, [
+      email,
+      level,
+    ]),
+  );
+}
+
+/** The id of the account with this email. */
+export function userId(email: string) {
+  return withDb(async (db) => {
+    const { rows } = await db.query(`SELECT id FROM "User" WHERE email = $1`, [
+      email,
+    ]);
+    return rows[0]?.id as string;
+  });
+}
+
+export function likeRecipe(recipeId: string, email: string) {
+  return withDb((db) =>
+    db.query(
+      `INSERT INTO "RecipeLike" ("recipeId", "userId") SELECT $1, id FROM "User" WHERE email = $2`,
+      [recipeId, email],
+    ),
+  );
+}
+
+export function banUser(email: string) {
+  return withDb((db) =>
+    db.query(`UPDATE "User" SET "bannedAt" = now() WHERE email = $1`, [email]),
+  );
+}
+
+/** Deletes test users matching a LIKE pattern; their content cascades. */
+export function deleteUsers(emailPattern: string) {
+  return withDb((db) =>
+    db.query(`DELETE FROM "User" WHERE email LIKE $1`, [emailPattern]),
+  );
+}
+
+/** Inserts a minimal recipe by `authorEmail` and returns its id. */
+export function insertRecipe(
+  authorEmail: string,
+  title: string,
+  media: {
+    imageUrls?: string[];
+    videoUrl?: string;
+    labels?: string[];
+    cookingMinutes?: number;
+  } = {},
+) {
+  return withDb(async (db) => {
+    const id = randomUUID();
+    await db.query(
+      `INSERT INTO "Recipe" (id, title, description, "cookingMinutes", labels, "videoUrl", "authorId", "updatedAt")
+       SELECT $1, $2, 'Test recipe', $6, $5::"Label"[], $4, id, now() FROM "User" WHERE email = $3`,
+      [
+        id,
+        title,
+        authorEmail,
+        media.videoUrl ?? null,
+        media.labels ?? [],
+        media.cookingMinutes ?? 20,
+      ],
+    );
+    for (const [position, url] of (media.imageUrls ?? []).entries()) {
+      await db.query(
+        `INSERT INTO "RecipeImage" (id, "recipeId", url, position) VALUES ($1, $2, $3, $4)`,
+        [randomUUID(), id, url, position],
+      );
+    }
+    await db.query(
+      `INSERT INTO "Ingredient" (id, "recipeId", position, name) VALUES ($1, $2, 0, 'Water')`,
+      [randomUUID(), id],
+    );
+    await db.query(
+      `INSERT INTO "Step" (id, "recipeId", position, text) VALUES ($1, $2, 0, 'Boil.')`,
+      [randomUUID(), id],
+    );
+    return id;
+  });
+}
+
+export function insertReview(
+  recipeId: string,
+  reviewerEmail: string,
+  rating: number,
+  comment: string,
+) {
+  return withDb((db) =>
+    db.query(
+      `INSERT INTO "Review" (id, "recipeId", "userId", rating, comment)
+       SELECT $1, $2, id, $3, $4 FROM "User" WHERE email = $5`,
+      [randomUUID(), recipeId, rating, comment, reviewerEmail],
+    ),
+  );
+}
+
+/** Creates an account that can log in with `password` (low bcrypt cost: tests only). */
+export function createUser(
+  email: string,
+  name: string,
+  level: number,
+  password: string,
+) {
+  return withDb((db) =>
+    db.query(
+      `INSERT INTO "User" (id, name, email, "passwordHash", "privilegeLevel", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, now())`,
+      [randomUUID(), name, email, bcrypt.hashSync(password, 4), level],
+    ),
+  );
+}
