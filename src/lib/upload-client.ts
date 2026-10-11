@@ -1,4 +1,4 @@
-import { upload } from "@vercel/blob/client";
+import { uploadPresigned } from "@vercel/blob/client";
 import { extensionFor, type MediaKind } from "@/lib/media";
 
 export type StorageMode = "blob" | "local";
@@ -18,13 +18,17 @@ export async function uploadMedia(
       .replace(/\.[^.]*$/, "")
       .replace(/[^A-Za-z0-9_-]+/g, "-")
       .slice(0, 40);
-    const blob = await upload(`recipes/${kind}s/${base || kind}.${ext}`, file, {
-      access: "public",
-      handleUploadUrl: "/api/upload",
-      contentType: file.type,
-      multipart: kind === "video",
-      onUploadProgress: (e) => onProgress(e.percentage),
-    });
+    const blob = await uploadPresigned(
+      `recipes/${kind}s/${base || kind}.${ext}`,
+      file,
+      {
+        access: "public",
+        handleUploadUrl: "/api/upload",
+        contentType: file.type,
+        multipart: kind === "video",
+        onUploadProgress: (e) => onProgress(e.percentage),
+      },
+    );
     return blob.url;
   }
 

@@ -4,14 +4,16 @@ import path from "node:path";
 import { del } from "@vercel/blob";
 
 /**
- * Media lives in Vercel Blob (US-2.2: object storage, not the database).
- * Without BLOB_READ_WRITE_TOKEN, development falls back to files in `.uploads/`
- * served by /api/uploads/[file]. Production refuses the fallback.
+ * Media lives in Vercel Blob (US-2.2: object storage, not the database),
+ * authenticated with Vercel OIDC: BLOB_STORE_ID picks the store and the SDK
+ * reads VERCEL_OIDC_TOKEN. Without BLOB_STORE_ID, development falls back to
+ * files in `.uploads/` served by /api/uploads/[file]. Production refuses the
+ * fallback.
  */
 export type StorageMode = "blob" | "local";
 
 export function storageMode(): StorageMode {
-  return process.env.BLOB_READ_WRITE_TOKEN ? "blob" : "local";
+  return process.env.BLOB_STORE_ID ? "blob" : "local";
 }
 
 export function localStorageAllowed() {

@@ -14,8 +14,9 @@ npx prisma migrate deploy   # create the tables
 npm run dev                 # http://localhost:3000
 ```
 
-Without `BLOB_READ_WRITE_TOKEN`, uploads in development go to `./.uploads` and are served from `/api/uploads/*`.
+Without `BLOB_STORE_ID`, uploads in development go to `./.uploads` and are served from `/api/uploads/*`.
 Production requires Vercel Blob; the local fallback is disabled there.
+To upload to Blob locally, run `npx vercel link` and `npx vercel env pull .env.local`; the pulled `VERCEL_OIDC_TOKEN` expires after about 12 hours, so pull again when uploads start failing. `npm run check:blob` tests the credentials without uploading anything.
 
 ## Privilege levels
 
@@ -89,7 +90,7 @@ tests/unit, tests/e2e           Vitest and Playwright
 ## Deploying to Vercel
 
 1. Import the repo in Vercel (production branch `main`).
-2. Create a Blob store in **Storage**, which adds `BLOB_READ_WRITE_TOKEN`; add `DATABASE_URL` and `AUTH_SECRET`.
+2. Create a **public** Blob store in **Storage** and connect it to the project, which adds `BLOB_STORE_ID` and `BLOB_WEBHOOK_PUBLIC_KEY` (the app authenticates with Vercel OIDC, no read-write token); add `DATABASE_URL` and `AUTH_SECRET`.
 3. Run migrations against production with `npm run db:migrate` (or add it to the build command).
 4. Create the first admin with `npm run set-level` against the production database.
 

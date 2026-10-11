@@ -15,7 +15,9 @@
     "db:migrate": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "set-level": "node scripts/set-level.mjs",
-    "seed:layout": "node scripts/seed-layout.mjs"
+    "seed:layout": "node scripts/seed-layout.mjs",
+    "seed:demo": "node scripts/seed-demo.mjs",
+    "check:blob": "node scripts/check-blob.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",
