@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { recipesChanged } from "@/lib/cache";
 import { labelCountError } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { canCreateRecipe, READ_ONLY_MESSAGE } from "@/lib/privileges";
@@ -86,6 +87,7 @@ export async function createRecipe(
     return { ok: false, errors: { _form: SAVE_FAILED } };
   }
 
+  recipesChanged();
   revalidatePath("/");
   redirect(`/recipes/${id}`);
 }
@@ -162,6 +164,7 @@ export async function updateRecipe(
   const oldMedia = [...existing.images.map((i) => i.url), existing.videoUrl];
   await deleteMedia(oldMedia.filter((u): u is string => !!u && !kept.has(u)));
 
+  recipesChanged();
   revalidatePath("/");
   revalidatePath(`/recipes/${recipeId}`);
   redirect(`/recipes/${recipeId}`);
@@ -197,6 +200,7 @@ export async function deleteRecipe(
   const media = [...existing.images.map((i) => i.url), existing.videoUrl];
   await deleteMedia(media.filter((u): u is string => !!u));
 
+  recipesChanged();
   revalidatePath("/");
   redirect("/");
 }

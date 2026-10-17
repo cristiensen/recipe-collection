@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { recipesChanged } from "@/lib/cache";
 import { prisma } from "@/lib/prisma";
 import { canSeeContentOf, READ_ONLY_MESSAGE } from "@/lib/privileges";
 import { canLikeRecipe } from "@/lib/rules";
@@ -60,6 +61,7 @@ export async function setRecipeLike(
     }
     const count = await prisma.recipeLike.count({ where: { recipeId } });
     // Keep Back/Forward copies of these pages in sync with the new state
+    recipesChanged();
     revalidatePath("/");
     revalidatePath(`/recipes/${recipeId}`);
     return { ok: true, liked, count };

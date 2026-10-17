@@ -3,6 +3,7 @@
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { signOut } from "@/auth";
+import { recipesChanged, userChanged } from "@/lib/cache";
 import { prisma } from "@/lib/prisma";
 import {
   canChangeDisplayName,
@@ -63,6 +64,8 @@ export async function updateDisplayName(
     data: { name: parsed.data },
   });
   // The name appears in the header, on recipes, reviews and profiles
+  userChanged(user.id);
+  recipesChanged();
   revalidatePath("/", "layout");
   return { ok: true, message: "Display name updated" };
 }
@@ -91,6 +94,7 @@ export async function updateProfileVisibility(
   const isPrivate = visibility === "private";
   await prisma.user.update({ where: { id: user.id }, data: { isPrivate } });
   // Affects browse, recipe pages, reviews and profiles
+  recipesChanged();
   revalidatePath("/", "layout");
   return {
     ok: true,
@@ -157,6 +161,8 @@ export async function deleteOwnAccount(
       ...(r.videoUrl ? [r.videoUrl] : []),
     ]),
   );
+  userChanged(user.id);
+  recipesChanged();
   revalidatePath("/", "layout");
   await signOut({ redirectTo: "/" });
   return undefined;

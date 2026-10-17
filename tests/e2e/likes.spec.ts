@@ -29,7 +29,9 @@ async function logIn(browser: Browser, email: string, to: string) {
 /** The recipe's heart, wherever it is on the page. */
 const heart = (page: Page) =>
   page.getByRole("button", { name: new RegExp(`^Like ${title}`) });
-const card = (page: Page) => page.locator("article", { hasText: title });
+/** The recipe's card in the main grid (once liked, it's also in "What you love"). */
+const card = (page: Page) =>
+  page.locator("ul[data-masonry] article", { hasText: title });
 const heartIcon = (page: Page) => heart(page).locator("svg");
 
 test("like and unlike from a browse card", async ({ browser }) => {

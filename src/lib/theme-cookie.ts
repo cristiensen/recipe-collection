@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { userChanged } from "@/lib/cache";
 import { prisma } from "@/lib/prisma";
 import { reconcileAtLogin, THEME_COOKIE, type Theme } from "@/lib/theme";
 
@@ -32,6 +33,7 @@ export async function reconcileThemeAtLogin(userId: string) {
       where: { id: userId },
       data: { theme: saveToAccount },
     });
+    userChanged(userId);
   }
   if (setCookie) await writeThemeCookie(setCookie);
 }

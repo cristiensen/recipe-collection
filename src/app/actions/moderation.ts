@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { recipesChanged, userChanged } from "@/lib/cache";
 import { prisma } from "@/lib/prisma";
 import {
   canBanUser,
@@ -37,6 +38,7 @@ async function loadTarget(userId: string) {
 }
 
 function revalidateRecipe(recipeId: string) {
+  recipesChanged();
   revalidatePath(`/recipes/${recipeId}`);
   revalidatePath("/");
 }
@@ -105,6 +107,7 @@ export async function setUserBanned(
     where: { id: userId },
     data: { bannedAt: banned ? new Date() : null },
   });
+  userChanged(userId);
   revalidatePath("/", "layout");
   return { ok: true };
 }
@@ -124,6 +127,9 @@ export async function setUserLevel(
     where: { id: userId },
     data: { privilegeLevel: level },
   });
+  userChanged(userId);
+  // Privacy only applies to chefs and up
+  recipesChanged();
   revalidatePath("/admin");
   return { ok: true };
 }
@@ -150,6 +156,8 @@ export async function deleteUserAccount(
       ...(r.videoUrl ? [r.videoUrl] : []),
     ]),
   );
+  userChanged(userId);
+  recipesChanged();
   revalidatePath("/", "layout");
   return { ok: true };
 }

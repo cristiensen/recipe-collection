@@ -23,7 +23,7 @@ test.afterAll(() => deleteUsers(`%-${run}@e2e.test`));
 async function titlesFor(page: Page, sort: string) {
   await page.goto(`/?sort=${sort}&shown=240`);
   await expect(page.locator("ul[data-masonry='on']")).toBeVisible();
-  return page.locator("article h2").allInnerTexts();
+  return page.locator("ul[data-masonry] article h2").allInnerTexts();
 }
 const order = (titles: string[]) => titles.filter((t) => [A, B, C].includes(t));
 
@@ -46,7 +46,7 @@ test("unrated recipes come last in both rating orders", async ({ page }) => {
   for (const sort of ["rating-desc", "rating-asc"]) {
     await titlesFor(page, sort);
     const rated = await page
-      .locator("article")
+      .locator("ul[data-masonry] article")
       .evaluateAll((cards) =>
         cards.map((c) => !c.textContent?.includes("No ratings yet")),
       );

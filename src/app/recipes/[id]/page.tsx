@@ -14,13 +14,12 @@ import { Stars } from "@/components/stars";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ViewBeacon } from "@/components/view-beacon";
 import { VoteButtons } from "@/components/vote-buttons";
 import {
-  getLikeSummary,
   getListedReviews,
-  getRatingSummary,
   getRecipe,
-  getViewerReview,
+  getRecipeStats,
   type RecipeDetail,
 } from "@/lib/data";
 import {
@@ -89,14 +88,15 @@ export default async function RecipePage(props: PageProps<"/recipes/[id]">) {
   if (!recipe || !canSeeContentOf(user, authorOf(recipe))) notFound();
   const authorPrivate = hasPrivateProfile(authorOf(recipe));
 
-  const [rating, likes] = await Promise.all([
-    getRatingSummary(recipe.id),
-    getLikeSummary(recipe.id, user?.id ?? null),
-  ]);
+  const { rating, likes, viewerReview } = await getRecipeStats(
+    recipe.id,
+    user?.id ?? null,
+  );
   const isAuthor = canEditRecipe(user, recipe);
 
   return (
     <article className="mx-auto flex w-full max-w-4xl flex-col gap-8">
+      <ViewBeacon recipeId={recipe.id} />
       <MediaGallery recipe={recipe} />
 
       <header className="flex flex-col gap-4">
@@ -234,7 +234,7 @@ export default async function RecipePage(props: PageProps<"/recipes/[id]">) {
           Reviews
         </h2>
         <Suspense fallback={<Skeleton className="h-40 w-full rounded-xl" />}>
-          <Reviews recipe={recipe} user={user} />
+          <Reviews recipe={recipe} user={user} viewerReview={viewerReview} />
         </Suspense>
       </section>
     </article>
@@ -278,14 +278,14 @@ function MediaGallery({ recipe }: { recipe: RecipeDetail }) {
 async function Reviews({
   recipe,
   user,
+  viewerReview,
 }: {
   recipe: RecipeDetail;
   user: CurrentUser | null;
+  /** The viewer's own review, if any. */
+  viewerReview: { rating: number; comment: string | null } | null;
 }) {
-  const [reviews, viewerReview] = await Promise.all([
-    getListedReviews(recipe.id, user),
-    user ? getViewerReview(recipe.id, user.id) : null,
-  ]);
+  const reviews = await getListedReviews(recipe.id, user);
   const here = `/recipes/${recipe.id}`;
 
   return (

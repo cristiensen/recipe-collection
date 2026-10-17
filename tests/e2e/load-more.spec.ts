@@ -20,11 +20,8 @@ async function openBrowse(page: Page, url = "/") {
   await page.evaluate(() => document.fonts.ready);
 }
 
-const cards = (page: Page) =>
-  page
-    .getByRole("list")
-    .filter({ has: page.locator("article") })
-    .locator("article");
+// The feed's cards, not those in the rows above it
+const cards = (page: Page) => page.locator("ul[data-masonry] article");
 const cardLinks = (page: Page) =>
   cards(page)
     .locator("h2 a")

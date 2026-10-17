@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "db:local": "prisma dev --detach --name recipe-collection",
     "db:migrate": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "set-level": "node scripts/set-level.mjs",

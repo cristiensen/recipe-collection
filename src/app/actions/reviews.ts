@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/prisma/client";
 import { VoteType } from "@/generated/prisma/enums";
+import { recipesChanged } from "@/lib/cache";
 import { prisma } from "@/lib/prisma";
 import { canSeeContentOf, READ_ONLY_MESSAGE } from "@/lib/privileges";
 import {
@@ -107,6 +108,7 @@ export async function saveReview(
   }
 
   // US-4.1: the average updates immediately.
+  recipesChanged();
   revalidatePath(`/recipes/${recipeId}`);
   revalidatePath("/");
   return { ok: true };

@@ -101,6 +101,8 @@ model Recipe {
   servings       Int?
   labels         Label[]
   videoUrl       String?
+  /// All-time views. Bumped with raw SQL so `updatedAt` stays the last edit.
+  viewCount      Int      @default(0)
   authorId       String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -111,6 +113,7 @@ model Recipe {
   steps       Step[]
   reviews     Review[]
   likes       RecipeLike[]
+  viewDays    RecipeViewDay[]
 
   @@index([createdAt(sort: Desc), id])
   @@index([authorId])
@@ -206,4 +209,21 @@ model RecipeLike {
 
   @@id([recipeId, userId])
   @@index([userId])
+  // "Most liked this week" scans the recent likes
+  @@index([createdAt])
+}
+
+// ──────────────────────────────── Views ────────────────────────────────
+
+/// Views of a recipe on one UTC day. Only the last week is kept (it feeds
+/// "most viewed this week"); the all-time total is `Recipe.viewCount`.
+model RecipeViewDay {
+  recipeId String
+  day      DateTime @db.Date
+  count    Int      @default(0)
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@id([recipeId, day])
+  @@index([day])
 }

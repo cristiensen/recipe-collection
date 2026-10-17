@@ -10,28 +10,45 @@ import { formatMinutes, formatRatingSummary } from "@/lib/format";
 import { labelName } from "@/lib/labels";
 import type { Actor } from "@/lib/privileges";
 import { likeMode } from "@/lib/rules";
+import { cn } from "@/lib/utils";
+
+/** Image widths for cards in the responsive grid (one, two or three columns). */
+const GRID_SIZES = "(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw";
 
 export function RecipeCard({
   recipe,
   viewer,
   loginUrl,
   priority = false,
+  sizes = GRID_SIZES,
+  titleAs: Title = "h2",
+  className,
 }: {
   recipe: RecipeCardData;
   viewer: Actor | null;
   /** Where guests go when they click the heart (returns them here after). */
   loginUrl: string;
   priority?: boolean;
+  /** The cover image's `sizes`, for cards that aren't in the grid. */
+  sizes?: string;
+  /** h3 when the card sits under a section heading (e.g. in a row). */
+  titleAs?: "h2" | "h3";
+  className?: string;
 }) {
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-xl border bg-card shadow-xs transition-shadow hover:shadow-md">
+    <article
+      className={cn(
+        "group relative flex flex-col overflow-hidden rounded-xl border bg-card shadow-xs transition-shadow hover:shadow-md",
+        className,
+      )}
+    >
       <div className="relative aspect-[4/3] bg-muted">
         {recipe.coverUrl ? (
           <Image
             src={recipe.coverUrl}
             alt={recipe.title}
             fill
-            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            sizes={sizes}
             className="object-cover"
             priority={priority}
           />
@@ -52,14 +69,14 @@ export function RecipeCard({
       </div>
       <div className="flex flex-1 flex-col gap-2 p-4">
         {recipe.authorPrivate && <PrivateBadge className="w-fit" />}
-        <h2 className="line-clamp-2 font-semibold leading-snug">
+        <Title className="line-clamp-2 font-semibold leading-snug">
           <Link
             href={`/recipes/${recipe.id}`}
             className="after:absolute after:inset-0 focus-visible:outline-none"
           >
             {recipe.title}
           </Link>
-        </h2>
+        </Title>
         <p className="text-sm text-muted-foreground">
           by{" "}
           {/* Above the card-wide link, so it opens the profile, not the recipe */}

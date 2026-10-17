@@ -1,4 +1,5 @@
-// Inserts 20 realistic demo recipes (with ratings and reviews) as test data.
+// Inserts 40 realistic demo recipes (with ratings, reviews and likes) as test
+// data.
 // All data belongs to dedicated seed accounts, and photos live under one Blob
 // prefix, so everything can be removed in one go without touching real data.
 //
@@ -23,7 +24,16 @@ const BLOB_PREFIX = `recipes/images/${SEED_PREFIX}`;
 // ─────────────────────────────── Demo data ───────────────────────────────
 
 const CHEFS = ["Elena Demo", "Marco Demo"];
-const REVIEWERS = ["Ana Demo", "Ben Demo", "Priya Demo", "Tom Demo"];
+const REVIEWERS = [
+  "Ana Demo",
+  "Ben Demo",
+  "Priya Demo",
+  "Tom Demo",
+  "Sofia Demo",
+  "Luca Demo",
+  "Mia Demo",
+  "Omar Demo",
+];
 
 // [quantity, unit, name]: quantity and unit may be null
 const RECIPES = [
@@ -617,6 +627,562 @@ const RECIPES = [
       "Top each tortilla with beans, an egg and salsa, and finish with avocado and coriander.",
     ],
   },
+  {
+    title: "Fluffy Buttermilk Pancakes",
+    description:
+      "Tall, tender pancakes with crisp golden edges. Resting the batter for a few minutes makes all the difference.",
+    minutes: 25,
+    servings: 4,
+    labels: ["VEGETARIAN", "BREAKFAST", "QUICK"],
+    colors: [
+      [230, 170, 90],
+      [255, 240, 200],
+    ],
+    ingredients: [
+      [200, "g", "plain flour"],
+      [2, "tbsp", "sugar"],
+      [2, "tsp", "baking powder"],
+      [0.5, "tsp", "baking soda"],
+      [300, "ml", "buttermilk"],
+      [1, null, "egg"],
+      [30, "g", "butter, melted"],
+      [null, null, "maple syrup, to serve"],
+    ],
+    steps: [
+      "Whisk the flour, sugar, baking powder, baking soda and a pinch of salt in a large bowl.",
+      "Whisk the buttermilk, egg and melted butter together, then fold into the dry ingredients until just combined. A few lumps are fine.",
+      "Rest the batter for 5 minutes while you heat a lightly buttered pan over medium heat.",
+      "Pour in ladlefuls of batter and cook until bubbles appear on top, then flip and cook for another minute.",
+      "Serve warm, stacked high, with maple syrup.",
+    ],
+  },
+  {
+    title: "Shakshuka",
+    description:
+      "Eggs gently poached in a spiced pepper and tomato sauce. Bring the pan to the table with plenty of bread for dipping.",
+    minutes: 35,
+    servings: 3,
+    labels: ["VEGETARIAN", "GLUTEN_FREE", "BREAKFAST", "SPICY"],
+    colors: [
+      [190, 50, 35],
+      [240, 190, 90],
+    ],
+    ingredients: [
+      [2, "tbsp", "olive oil"],
+      [1, null, "onion, sliced"],
+      [1, null, "red pepper, sliced"],
+      [2, "cloves", "garlic"],
+      [1, "tsp", "ground cumin"],
+      [1, "tsp", "smoked paprika"],
+      [0.5, "tsp", "chilli flakes"],
+      [800, "g", "canned chopped tomatoes"],
+      [6, null, "eggs"],
+      [null, null, "fresh parsley"],
+    ],
+    steps: [
+      "Soften the onion and pepper in the olive oil for 8 minutes, then add the garlic and spices for 1 minute.",
+      "Pour in the tomatoes and simmer for 10 minutes until thick. Season well.",
+      "Make six wells in the sauce and crack an egg into each.",
+      "Cover and cook on low heat for 6–8 minutes, until the whites are set but the yolks are still runny.",
+      "Scatter with parsley and serve straight from the pan.",
+    ],
+  },
+  {
+    title: "Pad Thai",
+    description:
+      "Rice noodles tossed with prawns, egg and bean sprouts in a sweet, sour and salty tamarind sauce, finished with crushed peanuts.",
+    minutes: 30,
+    servings: 2,
+    labels: ["DAIRY_FREE", "GLUTEN_FREE"],
+    colors: [
+      [220, 140, 60],
+      [250, 230, 170],
+    ],
+    ingredients: [
+      [200, "g", "flat rice noodles"],
+      [200, "g", "raw prawns, peeled"],
+      [2, null, "eggs"],
+      [3, "tbsp", "tamarind paste"],
+      [2, "tbsp", "fish sauce"],
+      [1.5, "tbsp", "brown sugar"],
+      [100, "g", "bean sprouts"],
+      [3, null, "spring onions, sliced"],
+      [40, "g", "roasted peanuts, crushed"],
+      [1, null, "lime"],
+    ],
+    steps: [
+      "Soak the noodles in hot water for 10 minutes until pliable, then drain.",
+      "Stir the tamarind, fish sauce and sugar together to make the sauce.",
+      "Stir-fry the prawns in a hot wok for 2 minutes, then push aside and scramble the eggs.",
+      "Add the noodles and sauce and toss for 2–3 minutes until the noodles are tender and glossy.",
+      "Fold in the bean sprouts and spring onions, and serve with peanuts and lime wedges.",
+    ],
+  },
+  {
+    title: "Banana Bread",
+    description:
+      "A moist, deeply flavoured loaf that's the best use for overripe bananas. Even better toasted the next day.",
+    minutes: 70,
+    servings: 10,
+    labels: ["VEGETARIAN", "DESSERT"],
+    colors: [
+      [150, 95, 50],
+      [235, 200, 140],
+    ],
+    ingredients: [
+      [3, null, "very ripe bananas"],
+      [100, "g", "butter, melted"],
+      [150, "g", "light brown sugar"],
+      [2, null, "eggs"],
+      [1, "tsp", "vanilla extract"],
+      [225, "g", "plain flour"],
+      [1, "tsp", "baking soda"],
+      [75, "g", "walnuts, chopped"],
+    ],
+    steps: [
+      "Heat the oven to 175°C and line a 900 g loaf tin.",
+      "Mash the bananas, then beat in the butter, sugar, eggs and vanilla.",
+      "Fold in the flour, baking soda and a pinch of salt, then the walnuts.",
+      "Pour into the tin and bake for 55–60 minutes, until a skewer comes out clean.",
+      "Cool in the tin for 10 minutes before turning out.",
+    ],
+  },
+  {
+    title: "Beef Bourguignon",
+    description:
+      "Beef braised slowly in red wine with bacon, mushrooms and baby onions until it falls apart. Worth every minute.",
+    minutes: 210,
+    servings: 6,
+    labels: ["DAIRY_FREE"],
+    colors: [
+      [100, 30, 35],
+      [180, 110, 80],
+    ],
+    ingredients: [
+      [1.2, "kg", "beef chuck, cubed"],
+      [150, "g", "smoked bacon lardons"],
+      [750, "ml", "red wine"],
+      [2, null, "carrots, sliced"],
+      [1, null, "onion, chopped"],
+      [2, "tbsp", "plain flour"],
+      [2, "tbsp", "tomato purée"],
+      [250, "g", "button mushrooms"],
+      [12, null, "baby onions, peeled"],
+      [null, null, "thyme and bay leaves"],
+    ],
+    steps: [
+      "Brown the bacon in a heavy casserole, then brown the beef in batches in the fat.",
+      "Soften the carrots and onion, stir in the flour and tomato purée, then return the meat.",
+      "Pour in the wine, add the herbs, cover and cook at 160°C for 2½ hours.",
+      "Fry the mushrooms and baby onions until golden and stir them in for the last 30 minutes.",
+      "Season and serve with mashed potatoes or crusty bread.",
+    ],
+  },
+  {
+    title: "Caprese Salad",
+    description:
+      "Ripe tomatoes, creamy mozzarella and basil with good olive oil. Only worth making in high summer.",
+    minutes: 10,
+    servings: 2,
+    labels: ["VEGETARIAN", "GLUTEN_FREE", "QUICK"],
+    colors: [
+      [220, 50, 50],
+      [240, 245, 235],
+    ],
+    ingredients: [
+      [3, null, "large ripe tomatoes"],
+      [250, "g", "buffalo mozzarella"],
+      [null, null, "fresh basil leaves"],
+      [3, "tbsp", "extra virgin olive oil"],
+      [null, null, "flaky sea salt and black pepper"],
+    ],
+    steps: [
+      "Slice the tomatoes and mozzarella into rounds about 1 cm thick.",
+      "Arrange them alternately on a plate, tucking basil leaves in between.",
+      "Drizzle with olive oil and season generously with salt and pepper just before serving.",
+    ],
+  },
+  {
+    title: "Vegan Chickpea Curry",
+    description:
+      "A creamy coconut curry with chickpeas and spinach, ready in half an hour from store-cupboard ingredients.",
+    minutes: 30,
+    servings: 4,
+    labels: ["VEGAN", "VEGETARIAN", "GLUTEN_FREE", "DAIRY_FREE", "SPICY"],
+    colors: [
+      [210, 150, 40],
+      [245, 225, 160],
+    ],
+    ingredients: [
+      [1, null, "onion, chopped"],
+      [3, "cloves", "garlic"],
+      [1, "tbsp", "grated ginger"],
+      [2, "tbsp", "curry powder"],
+      [400, "g", "canned chickpeas, drained"],
+      [400, "ml", "coconut milk"],
+      [200, "g", "canned chopped tomatoes"],
+      [100, "g", "baby spinach"],
+      [1, "tbsp", "coconut oil"],
+    ],
+    steps: [
+      "Fry the onion in the coconut oil until soft, then add the garlic, ginger and curry powder for a minute.",
+      "Stir in the chickpeas, coconut milk and tomatoes and simmer for 15 minutes.",
+      "Wilt the spinach into the curry and season with salt and a squeeze of lime.",
+      "Serve with rice or flatbreads.",
+    ],
+  },
+  {
+    title: "Lemon Drizzle Cake",
+    description:
+      "A light sponge soaked with a sharp lemon syrup that sets into a crackly sugar crust.",
+    minutes: 60,
+    servings: 8,
+    labels: ["VEGETARIAN", "DESSERT"],
+    colors: [
+      [240, 210, 60],
+      [255, 250, 220],
+    ],
+    ingredients: [
+      [225, "g", "butter, softened"],
+      [225, "g", "caster sugar"],
+      [4, null, "eggs"],
+      [225, "g", "self-raising flour"],
+      [2, null, "lemons, zested and juiced"],
+      [85, "g", "granulated sugar"],
+    ],
+    steps: [
+      "Heat the oven to 180°C and line a loaf tin.",
+      "Beat the butter and caster sugar until pale, then beat in the eggs one at a time.",
+      "Fold in the flour and lemon zest, spoon into the tin and bake for 45 minutes.",
+      "Mix the lemon juice with the granulated sugar, prick the warm cake all over and pour the syrup on top.",
+      "Leave to cool completely in the tin so the crust sets.",
+    ],
+  },
+  {
+    title: "Korean Bibimbap",
+    description:
+      "A bowl of warm rice topped with seasoned vegetables, beef and a fried egg, all mixed together with spicy gochujang.",
+    minutes: 45,
+    servings: 2,
+    labels: ["DAIRY_FREE", "SPICY"],
+    colors: [
+      [200, 60, 40],
+      [240, 200, 110],
+    ],
+    ingredients: [
+      [300, "g", "cooked short-grain rice"],
+      [200, "g", "beef mince"],
+      [2, "tbsp", "soy sauce"],
+      [1, null, "carrot, julienned"],
+      [100, "g", "spinach"],
+      [100, "g", "bean sprouts"],
+      [2, null, "eggs"],
+      [2, "tbsp", "gochujang"],
+      [1, "tbsp", "sesame oil"],
+    ],
+    steps: [
+      "Fry the beef with the soy sauce until browned and slightly sticky.",
+      "Separately sauté the carrot, then blanch the spinach and bean sprouts, and season each with a little sesame oil.",
+      "Fry the eggs sunny side up.",
+      "Divide the rice between bowls and arrange the vegetables and beef on top in sections.",
+      "Top with an egg and a spoonful of gochujang, and mix everything together at the table.",
+    ],
+  },
+  {
+    title: "Overnight Oats with Berries",
+    description:
+      "Five minutes of prep the night before gives you a creamy, ready-to-eat breakfast in the morning.",
+    minutes: 5,
+    servings: 1,
+    labels: ["VEGAN", "VEGETARIAN", "DAIRY_FREE", "BREAKFAST", "QUICK"],
+    colors: [
+      [130, 60, 120],
+      [240, 220, 230],
+    ],
+    ingredients: [
+      [50, "g", "rolled oats"],
+      [150, "ml", "oat milk"],
+      [1, "tbsp", "chia seeds"],
+      [1, "tsp", "maple syrup"],
+      [80, "g", "mixed berries"],
+    ],
+    steps: [
+      "Stir the oats, oat milk, chia seeds and maple syrup together in a jar.",
+      "Cover and refrigerate overnight.",
+      "In the morning, stir again, loosen with a splash of milk if needed and top with berries.",
+    ],
+  },
+  {
+    title: "Roast Chicken with Garlic and Herbs",
+    description:
+      "A whole chicken roasted over vegetables with garlic and herb butter under the skin. Sunday lunch sorted.",
+    minutes: 100,
+    servings: 4,
+    labels: ["GLUTEN_FREE"],
+    colors: [
+      [190, 120, 50],
+      [245, 215, 150],
+    ],
+    ingredients: [
+      [1.6, "kg", "whole chicken"],
+      [50, "g", "butter, softened"],
+      [4, "cloves", "garlic, crushed"],
+      [1, "tbsp", "chopped thyme and rosemary"],
+      [1, null, "lemon"],
+      [600, "g", "potatoes, quartered"],
+      [3, null, "carrots, chunked"],
+      [2, "tbsp", "olive oil"],
+    ],
+    steps: [
+      "Heat the oven to 200°C. Mix the butter with the garlic, herbs and lemon zest.",
+      "Loosen the chicken skin and push the butter underneath; put the halved lemon inside the cavity.",
+      "Toss the vegetables in oil, spread them in a roasting tin and sit the chicken on top.",
+      "Roast for 1 hour 20 minutes, until the juices run clear.",
+      "Rest for 15 minutes before carving.",
+    ],
+  },
+  {
+    title: "Mango Sticky Rice",
+    description:
+      "Sweet coconut-soaked glutinous rice with ripe mango and a salty coconut sauce. A Thai classic.",
+    minutes: 50,
+    servings: 4,
+    labels: ["VEGAN", "VEGETARIAN", "GLUTEN_FREE", "DAIRY_FREE", "DESSERT"],
+    colors: [
+      [250, 180, 40],
+      [255, 245, 220],
+    ],
+    ingredients: [
+      [250, "g", "glutinous rice, soaked overnight"],
+      [400, "ml", "coconut milk"],
+      [80, "g", "sugar"],
+      [0.5, "tsp", "salt"],
+      [2, null, "ripe mangoes"],
+      [1, "tsp", "cornflour"],
+      [1, "tbsp", "toasted sesame seeds"],
+    ],
+    steps: [
+      "Steam the drained rice for 25 minutes until tender.",
+      "Warm 300 ml of the coconut milk with the sugar and most of the salt, and stir into the hot rice. Leave for 20 minutes to absorb.",
+      "Heat the remaining coconut milk with the cornflour and a pinch of salt until thickened.",
+      "Serve the rice with sliced mango, drizzled with the sauce and scattered with sesame seeds.",
+    ],
+  },
+  {
+    title: "Spinach and Ricotta Lasagne",
+    description:
+      "Layers of pasta, creamy spinach and ricotta, and tomato sauce under a bubbling cheese top.",
+    minutes: 75,
+    servings: 6,
+    labels: ["VEGETARIAN"],
+    colors: [
+      [60, 120, 50],
+      [230, 200, 150],
+    ],
+    ingredients: [
+      [12, null, "lasagne sheets"],
+      [500, "g", "ricotta"],
+      [400, "g", "spinach, wilted and squeezed"],
+      [700, "ml", "passata"],
+      [2, "cloves", "garlic"],
+      [125, "g", "mozzarella, torn"],
+      [50, "g", "parmesan, grated"],
+      [null, null, "nutmeg"],
+    ],
+    steps: [
+      "Simmer the passata with the garlic for 10 minutes and season.",
+      "Mix the ricotta with the chopped spinach, half the parmesan and a grating of nutmeg.",
+      "Layer sauce, pasta and ricotta mixture in a baking dish, three times over, finishing with sauce.",
+      "Top with mozzarella and the remaining parmesan and bake at 190°C for 40 minutes.",
+      "Rest for 10 minutes before slicing.",
+    ],
+  },
+  {
+    title: "Fish and Chips",
+    description:
+      "Crisp beer-battered cod with thick-cut chips. Serve with mushy peas, tartare sauce and a wedge of lemon.",
+    minutes: 60,
+    servings: 4,
+    labels: ["DAIRY_FREE"],
+    colors: [
+      [210, 160, 70],
+      [250, 235, 190],
+    ],
+    ingredients: [
+      [4, null, "cod fillets"],
+      [1, "kg", "floury potatoes"],
+      [200, "g", "plain flour"],
+      [300, "ml", "cold beer"],
+      [1, "tsp", "baking powder"],
+      [null, null, "vegetable oil, for frying"],
+      [1, null, "lemon"],
+    ],
+    steps: [
+      "Cut the potatoes into thick chips, boil for 5 minutes and drain well.",
+      "Fry the chips at 140°C for 6 minutes, then lift out.",
+      "Whisk the flour, baking powder and beer into a smooth batter.",
+      "Dip the fish in the batter and fry at 180°C for 6–8 minutes until golden.",
+      "Fry the chips again at 180°C until crisp, and serve everything with lemon.",
+    ],
+  },
+  {
+    title: "Gazpacho",
+    description:
+      "A chilled Spanish soup of blended tomatoes, cucumber and peppers. Refreshing on the hottest days.",
+    minutes: 15,
+    servings: 4,
+    labels: ["VEGAN", "VEGETARIAN", "GLUTEN_FREE", "DAIRY_FREE", "QUICK"],
+    colors: [
+      [200, 40, 40],
+      [240, 160, 120],
+    ],
+    ingredients: [
+      [1, "kg", "ripe tomatoes"],
+      [1, null, "cucumber"],
+      [1, null, "red pepper"],
+      [1, "clove", "garlic"],
+      [3, "tbsp", "sherry vinegar"],
+      [80, "ml", "extra virgin olive oil"],
+    ],
+    steps: [
+      "Roughly chop the tomatoes, cucumber, pepper and garlic.",
+      "Blend everything with the vinegar and oil until very smooth, then season.",
+      "Chill for at least an hour and serve topped with finely diced cucumber.",
+    ],
+  },
+  {
+    title: "Classic Beef Burger",
+    description:
+      "Juicy hand-pressed patties with melted cheese, crisp lettuce and a tangy burger sauce in toasted brioche buns.",
+    minutes: 25,
+    servings: 4,
+    labels: ["QUICK"],
+    colors: [
+      [140, 70, 40],
+      [235, 190, 110],
+    ],
+    ingredients: [
+      [600, "g", "beef mince (20% fat)"],
+      [4, null, "brioche buns"],
+      [4, "slices", "cheddar"],
+      [null, null, "lettuce, tomato and red onion"],
+      [3, "tbsp", "mayonnaise"],
+      [1, "tbsp", "ketchup"],
+      [1, "tbsp", "chopped gherkins"],
+    ],
+    steps: [
+      "Divide the mince into four, press into patties slightly wider than the buns and season well.",
+      "Mix the mayonnaise, ketchup and gherkins to make the sauce.",
+      "Cook the patties in a very hot pan for 3 minutes per side, adding the cheese for the last minute.",
+      "Toast the buns, then build the burgers with sauce, lettuce, tomato and onion.",
+    ],
+  },
+  {
+    title: "Miso Glazed Aubergine",
+    description:
+      "Silky roasted aubergine halves with a sweet, savoury miso glaze. Lovely with rice and greens.",
+    minutes: 40,
+    servings: 2,
+    labels: ["VEGAN", "VEGETARIAN", "DAIRY_FREE"],
+    colors: [
+      [80, 40, 90],
+      [200, 150, 90],
+    ],
+    ingredients: [
+      [2, null, "aubergines, halved"],
+      [3, "tbsp", "white miso"],
+      [1, "tbsp", "mirin"],
+      [1, "tbsp", "maple syrup"],
+      [1, "tsp", "rice vinegar"],
+      [1, "tbsp", "sesame seeds"],
+      [2, null, "spring onions"],
+    ],
+    steps: [
+      "Score the aubergine flesh in a criss-cross pattern, brush with oil and roast cut-side down at 200°C for 25 minutes.",
+      "Mix the miso, mirin, maple syrup and vinegar into a glaze.",
+      "Turn the aubergines over, spread with the glaze and grill for 5 minutes until bubbling.",
+      "Scatter with sesame seeds and sliced spring onions.",
+    ],
+  },
+  {
+    title: "Crème Brûlée",
+    description:
+      "A rich vanilla custard under a shell of caramelised sugar you crack with a spoon.",
+    minutes: 60,
+    servings: 4,
+    labels: ["VEGETARIAN", "GLUTEN_FREE", "DESSERT"],
+    colors: [
+      [200, 140, 50],
+      [255, 240, 200],
+    ],
+    ingredients: [
+      [500, "ml", "double cream"],
+      [1, null, "vanilla pod"],
+      [5, null, "egg yolks"],
+      [70, "g", "caster sugar"],
+      [4, "tbsp", "demerara sugar, for the top"],
+    ],
+    steps: [
+      "Heat the oven to 150°C. Warm the cream with the split vanilla pod until steaming.",
+      "Whisk the yolks and caster sugar, then slowly whisk in the hot cream.",
+      "Strain into four ramekins, set in a roasting tin and pour hot water halfway up their sides.",
+      "Bake for 35 minutes until just set with a wobble, then chill for at least 3 hours.",
+      "Sprinkle with demerara sugar and caramelise with a blowtorch just before serving.",
+    ],
+  },
+  {
+    title: "Spicy Black Bean Burritos",
+    description:
+      "Big flour tortillas stuffed with spiced black beans, rice, corn and salsa. Easy to make ahead and wrap for lunch.",
+    minutes: 30,
+    servings: 4,
+    labels: ["VEGAN", "VEGETARIAN", "DAIRY_FREE", "SPICY"],
+    colors: [
+      [60, 50, 50],
+      [220, 180, 90],
+    ],
+    ingredients: [
+      [4, null, "large flour tortillas"],
+      [800, "g", "canned black beans, drained"],
+      [200, "g", "cooked rice"],
+      [150, "g", "sweetcorn"],
+      [1, "tsp", "ground cumin"],
+      [1, "tsp", "chipotle chilli powder"],
+      [150, "g", "tomato salsa"],
+      [1, null, "lime"],
+    ],
+    steps: [
+      "Warm the beans with the cumin, chilli and a splash of water, mashing about half of them.",
+      "Stir the corn and lime juice into the rice.",
+      "Warm the tortillas, then fill with rice, beans and salsa.",
+      "Fold in the sides, roll up tightly and toast seam-side down in a dry pan until golden.",
+    ],
+  },
+  {
+    title: "Garlic Butter Prawns",
+    description:
+      "Plump prawns sizzled in garlic butter with chilli and parsley. Ten minutes from pan to plate.",
+    minutes: 10,
+    servings: 2,
+    labels: ["GLUTEN_FREE", "QUICK", "SPICY"],
+    colors: [
+      [230, 110, 70],
+      [250, 220, 170],
+    ],
+    ingredients: [
+      [300, "g", "large raw prawns, peeled"],
+      [40, "g", "butter"],
+      [4, "cloves", "garlic, sliced"],
+      [0.5, "tsp", "chilli flakes"],
+      [1, null, "lemon"],
+      [null, null, "fresh parsley, chopped"],
+    ],
+    steps: [
+      "Melt the butter in a large pan and gently fry the garlic and chilli for 1 minute.",
+      "Add the prawns and cook for 2 minutes per side until pink.",
+      "Squeeze over the lemon, toss with parsley and serve with crusty bread to mop up the butter.",
+    ],
+  },
 ];
 
 const COMMENTS = [
@@ -714,6 +1280,8 @@ async function seed(db, photoUrls) {
   for (const name of CHEFS) chefIds.push(await createUser(db, name, 2));
   const reviewerIds = [];
   for (const name of REVIEWERS) reviewerIds.push(await createUser(db, name, 1));
+  let reviews = 0;
+  let likes = 0;
 
   for (const [i, recipe] of RECIPES.entries()) {
     const id = randomUUID();
@@ -770,11 +1338,30 @@ async function seed(db, photoUrls) {
             ),
           ],
         );
+        reviews++;
+      }
+    }
+    // About a third get no likes; the rest are liked by a random set of the
+    // other accounts, some within the last week ("most liked this week")
+    if (rand() < 0.65) {
+      const authorId = chefIds[i % chefIds.length];
+      for (const userId of [...chefIds, ...reviewerIds]) {
+        if (userId === authorId || rand() < 0.45) continue;
+        const likedAt = new Date(
+          createdAt.getTime() + rand() * (Date.now() - createdAt.getTime()),
+        );
+        await db.query(
+          `INSERT INTO "RecipeLike" ("recipeId", "userId", "createdAt") VALUES ($1, $2, $3)`,
+          [id, userId, likedAt],
+        );
+        likes++;
       }
     }
   }
   return {
     recipes: RECIPES.length,
+    reviews,
+    likes,
     photos: photoUrls.reduce((n, p) => n + p.length, 0),
   };
 }
@@ -806,7 +1393,7 @@ try {
     const added = await seed(db, photoUrls);
     await db.query("COMMIT");
     console.log(
-      `Added ${added.recipes} demo recipes with ${added.photos} photos by ${CHEFS.join(" and ")}.` +
+      `Added ${added.recipes} demo recipes with ${added.photos} photos, ${added.reviews} reviews and ${added.likes} likes by ${CHEFS.join(" and ")}.` +
         " Run `npm run seed:demo -- --remove` to delete them.",
     );
   }

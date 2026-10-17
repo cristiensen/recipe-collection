@@ -128,3 +128,32 @@ export function createUser(
     ),
   );
 }
+
+/** A recipe's all-time views and the views counted for it today. */
+export function recipeViews(recipeId: string) {
+  return withDb(async (db) => {
+    const { rows } = await db.query(
+      `SELECT r."viewCount" AS total, COALESCE(SUM(v.count), 0)::int AS today
+       FROM "Recipe" r
+       LEFT JOIN "RecipeViewDay" v ON v."recipeId" = r.id
+         AND v.day = (now() AT TIME ZONE 'UTC')::date
+       WHERE r.id = $1
+       GROUP BY r.id`,
+      [recipeId],
+    );
+    return rows[0] as { total: number; today: number };
+  });
+}
+
+/** Adds `count` views to a recipe on the UTC day `daysAgo` days back. */
+export function addRecipeViews(recipeId: string, count: number, daysAgo = 0) {
+  return withDb((db) =>
+    db.query(
+      `INSERT INTO "RecipeViewDay" ("recipeId", day, count)
+       VALUES ($1, (now() AT TIME ZONE 'UTC')::date - $3::int, $2)
+       ON CONFLICT ("recipeId", day)
+       DO UPDATE SET count = "RecipeViewDay".count + $2`,
+      [recipeId, count, daysAgo],
+    ),
+  );
+}

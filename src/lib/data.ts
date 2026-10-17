@@ -2,14 +2,21 @@ import "server-only";
 import { cache } from "react";
 import { Prisma } from "@/generated/prisma/client";
 import type { Label, VoteType } from "@/generated/prisma/enums";
+import { cachedRecipeData } from "@/lib/cache";
 import { prisma } from "@/lib/prisma";
+import { type Actor, hasPrivateProfile } from "@/lib/privileges";
 import {
-  type Actor,
-  hasPrivateProfile,
-  isStaff,
-  LEVEL,
-} from "@/lib/privileges";
-import { compareReviews, type FeedFilters, type SortKey } from "@/lib/rules";
+  type BrowseFilters,
+  compareReviews,
+  type FeedFilters,
+  type SortKey,
+} from "@/lib/rules";
+import { TRENDING_DAYS, trendingCutoff } from "@/lib/views";
+import { visibleUserSql } from "@/lib/visibility";
+
+// Hosted Postgres bills every query, so each list of cards below is one SQL
+// statement (cards, their numbers and the list's total together), and pages
+// load their lists together where they can.
 
 export type RecipeCardData = {
   id: string;
@@ -31,21 +38,6 @@ export type RecipeCardData = {
 /** The person looking at the page (null for guests). */
 type Viewer = Actor | null;
 
-/**
- * Prisma filter for users whose content the viewer may see: public profiles,
- * the viewer's own, or everything for staff (see `canSeeContentOf`).
- */
-function visibleUserWhere(viewer: Viewer): Prisma.UserWhereInput {
-  if (isStaff(viewer)) return {};
-  return {
-    OR: [
-      { isPrivate: false },
-      { privilegeLevel: { lt: LEVEL.CHEF } },
-      ...(viewer ? [{ id: viewer.id }] : []),
-    ],
-  };
-}
-
 /** ORDER BY for each sort option. Ties fall back to newest first, so the
  * order is always stable (which "Load more" relies on). */
 const ORDER_BY: Record<SortKey, Prisma.Sql> = {
@@ -59,21 +51,18 @@ const ORDER_BY: Record<SortKey, Prisma.Sql> = {
 };
 
 /**
- * FROM + WHERE for the browse feed. It's SQL rather than a Prisma query
- * because sorting and filtering by average rating need the aggregate; every
- * value is passed as a query parameter.
+ * FROM + WHERE for the browse feed and the rows above it. It's SQL rather
+ * than a Prisma query because sorting and filtering by average rating need
+ * the aggregate; every value is passed as a query parameter. `join` narrows
+ * or extends the recipes `r` (e.g. to the viewer's likes) for a row.
  */
-function feedQuery(filters: FeedFilters, viewer: Viewer) {
-  const conditions: Prisma.Sql[] = [Prisma.sql`TRUE`];
-  if (!isStaff(viewer)) {
-    // Same rule as visibleUserWhere: hide recipes whose author is private
-    conditions.push(Prisma.sql`NOT EXISTS (
-      SELECT 1 FROM "User" a
-      WHERE a.id = r."authorId" AND a."isPrivate"
-        AND a."privilegeLevel" >= ${LEVEL.CHEF}
-        AND a.id <> ${viewer?.id ?? ""}
-    )`);
-  }
+function feedQuery(
+  filters: FeedFilters,
+  viewer: Viewer,
+  join: Prisma.Sql = Prisma.empty,
+) {
+  // Recipes by private authors are hidden
+  const conditions: Prisma.Sql[] = [visibleUserSql(viewer, "a")];
   // US-3.2: a recipe must have *all* selected labels
   if (filters.labels.length > 0) {
     conditions.push(Prisma.sql`r.labels @> ${filters.labels}::"Label"[]`);
@@ -88,108 +77,207 @@ function feedQuery(filters: FeedFilters, viewer: Viewer) {
   }
   return Prisma.sql`
     FROM "Recipe" r
+    JOIN "User" a ON a.id = r."authorId"
+    ${join}
     LEFT JOIN (
       SELECT "recipeId", AVG(rating) AS avg FROM "Review" GROUP BY "recipeId"
     ) s ON s."recipeId" = r.id
     WHERE ${Prisma.join(conditions, " AND ")}`;
 }
 
-export async function countRecipes(filters: FeedFilters, viewer: Viewer) {
-  const [row] = await prisma.$queryRaw<{ count: number }[]>`
-    SELECT COUNT(*)::int AS count ${feedQuery(filters, viewer)}`;
-  return row?.count ?? 0;
+/**
+ * A list for `cardLists`: the first `take` recipes `r` of `from` (FROM, WHERE
+ * and optionally GROUP BY r.id) in `orderBy` order, with each one's position
+ * `ord` and the `total` number of matches before the limit.
+ */
+function listQuery(from: Prisma.Sql, orderBy: Prisma.Sql, take: number) {
+  return Prisma.sql`
+    SELECT r.id,
+      ROW_NUMBER() OVER (ORDER BY ${orderBy}) AS ord,
+      COUNT(*) OVER () AS total
+    ${from}
+    ORDER BY ord
+    LIMIT ${take}`;
 }
 
-/** The first `take` recipe cards matching the filters, in the chosen order. */
-export async function getRecipeFeed(
-  filters: FeedFilters,
-  sort: SortKey,
-  take: number,
-  viewer: Viewer,
-) {
-  const ordered = await prisma.$queryRaw<{ id: string }[]>`
-    SELECT r.id ${feedQuery(filters, viewer)}
-    ORDER BY ${ORDER_BY[sort]}
-    LIMIT ${take}`;
-  return recipeCards(
-    ordered.map((r) => r.id),
-    viewer?.id ?? null,
+type CardList = { recipes: RecipeCardData[]; total: number };
+
+type CardRow = Omit<RecipeCardData, "authorPrivate"> & {
+  list: number;
+  total: number;
+  authorIsPrivate: boolean;
+  authorLevel: number;
+};
+
+/** Card data for several `listQuery` lists, in one query, in their order. */
+async function cardLists(
+  lists: Prisma.Sql[],
+  viewerId: string | null,
+): Promise<CardList[]> {
+  const result = lists.map((): CardList => ({ recipes: [], total: 0 }));
+  if (lists.length === 0) return result;
+  const rows = await prisma.$queryRaw<CardRow[]>`
+    SELECT o.list, o.total::int AS total,
+      r.id, r.title, r."cookingMinutes", r.labels::text[] AS labels,
+      r."authorId", a.name AS "authorName",
+      a."isPrivate" AS "authorIsPrivate", a."privilegeLevel" AS "authorLevel",
+      (SELECT i.url FROM "RecipeImage" i WHERE i."recipeId" = r.id
+        ORDER BY i.position LIMIT 1) AS "coverUrl",
+      rs.avg AS "averageRating", rs.count AS "ratingCount",
+      (SELECT COUNT(*)::int FROM "RecipeLike" k
+        WHERE k."recipeId" = r.id) AS "likeCount",
+      EXISTS (SELECT 1 FROM "RecipeLike" k
+        WHERE k."recipeId" = r.id AND k."userId" = ${viewerId ?? ""}) AS liked
+    FROM (${Prisma.join(
+      lists.map(
+        (list, i) =>
+          Prisma.sql`SELECT ${i}::int AS list, x.id, x.ord, x.total FROM (${list}) x`,
+      ),
+      " UNION ALL ",
+    )}) o
+    JOIN "Recipe" r ON r.id = o.id
+    JOIN "User" a ON a.id = r."authorId"
+    CROSS JOIN LATERAL (
+      SELECT AVG(rating)::float8 AS avg, COUNT(*)::int AS count
+      FROM "Review" WHERE "recipeId" = r.id
+    ) rs
+    ORDER BY o.list, o.ord`;
+  for (const { list, total, authorIsPrivate, authorLevel, ...card } of rows) {
+    result[list].total = total;
+    result[list].recipes.push({
+      ...card,
+      authorPrivate: hasPrivateProfile({
+        isPrivate: authorIsPrivate,
+        level: authorLevel,
+      }),
+    });
+  }
+  return result;
+}
+
+// ────────────────────────────── Browse page ──────────────────────────────
+
+/** Most recipes a row above the browse feed shows. */
+export const ROW_SIZE = 15;
+
+/** The first `shown` recipes matching the filters, in the chosen order. */
+function feedList(filters: BrowseFilters, viewer: Viewer) {
+  return listQuery(
+    feedQuery(filters, viewer),
+    ORDER_BY[filters.sort],
+    filters.shown,
   );
 }
 
-/** Card data for recipes, in the order of `ids`. */
-async function recipeCards(
-  ids: string[],
-  viewerId: string | null,
-): Promise<RecipeCardData[]> {
-  if (ids.length === 0) return [];
-  const [rows, stats, likes] = await Promise.all([
-    prisma.recipe.findMany({
-      where: { id: { in: ids } },
-      select: {
-        id: true,
-        title: true,
-        cookingMinutes: true,
-        labels: true,
-        authorId: true,
-        author: {
-          select: { name: true, isPrivate: true, privilegeLevel: true },
-        },
-        images: {
-          orderBy: { position: "asc" },
-          take: 1,
-          select: { url: true },
-        },
-      },
-    }),
-    ratingStats(ids),
-    likeStats(ids, viewerId),
-  ]);
-  const byId = new Map(rows.map((r) => [r.id, r]));
-  return ids.flatMap((id): RecipeCardData[] => {
-    const r = byId.get(id);
-    if (!r) return []; // deleted between the two queries
-    return [
-      {
-        id: r.id,
-        title: r.title,
-        authorId: r.authorId,
-        authorName: r.author.name,
-        coverUrl: r.images[0]?.url ?? null,
-        cookingMinutes: r.cookingMinutes,
-        labels: r.labels,
-        averageRating: stats.get(r.id)?.average ?? null,
-        ratingCount: stats.get(r.id)?.count ?? 0,
-        likeCount: likes.counts.get(r.id) ?? 0,
-        liked: likes.likedByViewer.has(r.id),
-        authorPrivate: hasPrivateProfile({
-          isPrivate: r.author.isPrivate,
-          level: r.author.privilegeLevel,
-        }),
-      },
-    ];
-  });
+/** "What you love": the viewer's likes matching the filters, latest first. */
+function lovedList(filters: FeedFilters, viewer: Actor) {
+  return listQuery(
+    feedQuery(
+      filters,
+      viewer,
+      Prisma.sql`JOIN "RecipeLike" l
+        ON l."recipeId" = r.id AND l."userId" = ${viewer.id}`,
+    ),
+    Prisma.sql`l."createdAt" DESC, r.id DESC`,
+    ROW_SIZE,
+  );
+}
+
+/** The recipes opened most in the last week (UTC days), most viewed first. */
+function mostViewedList(filters: FeedFilters, viewer: Viewer) {
+  return listQuery(
+    Prisma.sql`${feedQuery(
+      filters,
+      viewer,
+      Prisma.sql`JOIN "RecipeViewDay" v
+        ON v."recipeId" = r.id AND v.day > ${trendingCutoff}`,
+    )} GROUP BY r.id`,
+    Prisma.sql`SUM(v.count) DESC, r."createdAt" DESC, r.id DESC`,
+    ROW_SIZE,
+  );
+}
+
+/** The recipes that got the most likes in the last week, most liked first. */
+export async function getMostLikedThisWeek(
+  filters: FeedFilters,
+  viewer: Viewer,
+) {
+  // "createdAt" is stored in UTC without a time zone, so compare in UTC
+  const [list] = await cardLists(
+    [
+      listQuery(
+        Prisma.sql`${feedQuery(
+          filters,
+          viewer,
+          Prisma.sql`JOIN "RecipeLike" l ON l."recipeId" = r.id
+            AND l."createdAt" > (now() AT TIME ZONE 'UTC') - make_interval(days => ${TRENDING_DAYS}::int)`,
+        )} GROUP BY r.id`,
+        Prisma.sql`COUNT(*) DESC, r."createdAt" DESC, r.id DESC`,
+        ROW_SIZE,
+      ),
+    ],
+    viewer?.id ?? null,
+  );
+  return list.recipes;
+}
+
+async function loadBrowseLists(filters: BrowseFilters, viewer: Viewer) {
+  const [feed, hottest, loved] = await cardLists(
+    [
+      feedList(filters, viewer),
+      mostViewedList(filters, viewer),
+      ...(viewer ? [lovedList(filters, viewer)] : []),
+    ],
+    viewer?.id ?? null,
+  );
+  return {
+    /** The feed: the first `filters.shown` matches, in the chosen order. */
+    recipes: feed.recipes,
+    /** Every recipe matching the filters. */
+    total: feed.total,
+    hottest: hottest.recipes,
+    /** Empty for guests. */
+    loved: loved?.recipes ?? [],
+  };
+}
+
+/**
+ * Everything the browse page lists, in one query. Guests all see the same
+ * thing, so theirs is cached (see `cachedRecipeData`).
+ */
+export function getBrowseLists(filters: BrowseFilters, viewer: Viewer) {
+  if (viewer) return loadBrowseLists(filters, viewer);
+  return cachedRecipeData(
+    () => loadBrowseLists(filters, null),
+    ["browse-guest", JSON.stringify(filters)],
+  );
 }
 
 // ──────────────────────────────── Profiles ────────────────────────────────
 
 /** Public profile header: who they are and a few numbers. */
 export const getUserProfile = cache(async (userId: string) => {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      name: true,
-      privilegeLevel: true,
-      isPrivate: true,
-      createdAt: true,
-      _count: { select: { recipes: true, reviews: true } },
-    },
-  });
+  const [user] = await prisma.$queryRaw<
+    {
+      id: string;
+      name: string;
+      privilegeLevel: number;
+      isPrivate: boolean;
+      createdAt: Date;
+      recipeCount: number;
+      reviewCount: number;
+      likesReceived: number;
+    }[]
+  >`
+    SELECT u.id, u.name, u."privilegeLevel", u."isPrivate", u."createdAt",
+      (SELECT COUNT(*)::int FROM "Recipe" WHERE "authorId" = u.id) AS "recipeCount",
+      (SELECT COUNT(*)::int FROM "Review" WHERE "userId" = u.id) AS "reviewCount",
+      (SELECT COUNT(*)::int FROM "RecipeLike" l
+        JOIN "Recipe" r ON r.id = l."recipeId"
+        WHERE r."authorId" = u.id) AS "likesReceived"
+    FROM "User" u
+    WHERE u.id = ${userId}`;
   if (!user) return null;
-  const likesReceived = await prisma.recipeLike.count({
-    where: { recipe: { authorId: userId } },
-  });
   return {
     id: user.id,
     name: user.name,
@@ -197,9 +285,9 @@ export const getUserProfile = cache(async (userId: string) => {
     /** The saved setting (shown in Settings). */
     isPrivate: user.isPrivate,
     memberSince: user.createdAt,
-    recipeCount: user._count.recipes,
-    reviewCount: user._count.reviews,
-    likesReceived,
+    recipeCount: user.recipeCount,
+    reviewCount: user.reviewCount,
+    likesReceived: user.likesReceived,
   };
 });
 
@@ -210,20 +298,17 @@ export async function getUserRecipes(
   take: number,
   viewer: Viewer,
 ) {
-  const [rows, total] = await Promise.all([
-    prisma.recipe.findMany({
-      where: { authorId: userId },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take,
-      select: { id: true },
-    }),
-    prisma.recipe.count({ where: { authorId: userId } }),
-  ]);
-  const recipes = await recipeCards(
-    rows.map((r) => r.id),
+  const [list] = await cardLists(
+    [
+      listQuery(
+        Prisma.sql`FROM "Recipe" r WHERE r."authorId" = ${userId}`,
+        Prisma.sql`r."createdAt" DESC, r.id DESC`,
+        take,
+      ),
+    ],
     viewer?.id ?? null,
   );
-  return { recipes, total };
+  return list;
 }
 
 /** Recipes a user liked, most recently liked first. */
@@ -232,78 +317,63 @@ export async function getLikedRecipes(
   take: number,
   viewer: Viewer,
 ) {
-  const where: Prisma.RecipeLikeWhereInput = {
-    userId,
-    recipe: { author: visibleUserWhere(viewer) },
-  };
-  const [rows, total] = await Promise.all([
-    prisma.recipeLike.findMany({
-      where,
-      orderBy: [{ createdAt: "desc" }, { recipeId: "desc" }],
-      take,
-      select: { recipeId: true },
-    }),
-    prisma.recipeLike.count({ where }),
-  ]);
-  const recipes = await recipeCards(
-    rows.map((r) => r.recipeId),
+  const [list] = await cardLists(
+    [
+      listQuery(
+        Prisma.sql`FROM "RecipeLike" l
+          JOIN "Recipe" r ON r.id = l."recipeId"
+          JOIN "User" a ON a.id = r."authorId"
+          WHERE l."userId" = ${userId} AND ${visibleUserSql(viewer, "a")}`,
+        Prisma.sql`l."createdAt" DESC, l."recipeId" DESC`,
+        take,
+      ),
+    ],
     viewer?.id ?? null,
   );
-  return { recipes, total };
+  return list;
 }
 
-/** BR-9: every rating counts, whether or not it has a comment. */
-/** Like counts for some recipes, and which of them the viewer has liked. */
-async function likeStats(recipeIds: string[], viewerId: string | null) {
-  const [groups, mine] = await Promise.all([
-    prisma.recipeLike.groupBy({
-      by: ["recipeId"],
-      where: { recipeId: { in: recipeIds } },
-      _count: { _all: true },
-    }),
-    viewerId
-      ? prisma.recipeLike.findMany({
-          where: { recipeId: { in: recipeIds }, userId: viewerId },
-          select: { recipeId: true },
-        })
-      : [],
-  ]);
-  return {
-    counts: new Map(groups.map((g) => [g.recipeId, g._count._all])),
-    likedByViewer: new Set(mine.map((l) => l.recipeId)),
-  };
-}
+// ─────────────────────────────── Recipe page ───────────────────────────────
 
-export async function getLikeSummary(
+/**
+ * A recipe's numbers (BR-9: every rating counts, whether or not it has a
+ * comment), plus whether the viewer liked it and their own review.
+ */
+export async function getRecipeStats(
   recipeId: string,
   viewerId: string | null,
 ) {
-  const stats = await likeStats([recipeId], viewerId);
+  const [row] = await prisma.$queryRaw<
+    {
+      average: number | null;
+      ratingCount: number;
+      likeCount: number;
+      liked: boolean;
+      viewerRating: number | null;
+      viewerComment: string | null;
+    }[]
+  >`
+    SELECT
+      (SELECT AVG(rating)::float8 FROM "Review"
+        WHERE "recipeId" = ${recipeId}) AS average,
+      (SELECT COUNT(*)::int FROM "Review"
+        WHERE "recipeId" = ${recipeId}) AS "ratingCount",
+      (SELECT COUNT(*)::int FROM "RecipeLike"
+        WHERE "recipeId" = ${recipeId}) AS "likeCount",
+      EXISTS (SELECT 1 FROM "RecipeLike"
+        WHERE "recipeId" = ${recipeId} AND "userId" = ${viewerId ?? ""}) AS liked,
+      v.rating AS "viewerRating", v.comment AS "viewerComment"
+    FROM (SELECT 1) one
+    LEFT JOIN "Review" v
+      ON v."recipeId" = ${recipeId} AND v."userId" = ${viewerId ?? ""}`;
   return {
-    count: stats.counts.get(recipeId) ?? 0,
-    liked: stats.likedByViewer.has(recipeId),
+    rating: { average: row.average, count: row.ratingCount },
+    likes: { count: row.likeCount, liked: row.liked },
+    viewerReview:
+      row.viewerRating === null
+        ? null
+        : { rating: row.viewerRating, comment: row.viewerComment },
   };
-}
-
-async function ratingStats(recipeIds: string[]) {
-  const map = new Map<string, { average: number; count: number }>();
-  if (recipeIds.length === 0) return map;
-  const groups = await prisma.review.groupBy({
-    by: ["recipeId"],
-    where: { recipeId: { in: recipeIds } },
-    _avg: { rating: true },
-    _count: { _all: true },
-  });
-  for (const g of groups) {
-    map.set(g.recipeId, { average: g._avg.rating ?? 0, count: g._count._all });
-  }
-  return map;
-}
-
-export async function getRatingSummary(recipeId: string) {
-  const stats = await ratingStats([recipeId]);
-  const s = stats.get(recipeId);
-  return { average: s?.average ?? null, count: s?.count ?? 0 };
 }
 
 /** Cached per request so generateMetadata and the page share one query. */
@@ -345,70 +415,36 @@ export async function getListedReviews(
   recipeId: string,
   viewer: Viewer,
 ): Promise<ListedReview[]> {
-  const viewerId = viewer?.id ?? null;
-  const reviews = await prisma.review.findMany({
-    // Reviews by private profiles are hidden (their ratings still count)
-    where: { recipeId, comment: { not: null }, user: visibleUserWhere(viewer) },
-    include: {
-      user: {
-        select: {
-          name: true,
-          privilegeLevel: true,
-          bannedAt: true,
-          isPrivate: true,
-        },
-      },
-    },
-  });
-  if (reviews.length === 0) return [];
-  const ids = reviews.map((r) => r.id);
-
-  const [tallies, viewerVotes] = await Promise.all([
-    prisma.reviewVote.groupBy({
-      by: ["reviewId", "type"],
-      where: { reviewId: { in: ids } },
-      _count: { _all: true },
-    }),
-    viewerId
-      ? prisma.reviewVote.findMany({
-          where: { reviewId: { in: ids }, userId: viewerId },
-          select: { reviewId: true, type: true },
-        })
-      : [],
-  ]);
-
-  const count = (reviewId: string, type: VoteType) =>
-    tallies.find((t) => t.reviewId === reviewId && t.type === type)?._count
-      ._all ?? 0;
-
-  return reviews
-    .map((r) => ({
-      id: r.id,
-      authorId: r.userId,
-      authorName: r.user.name,
-      authorLevel: r.user.privilegeLevel,
-      authorBanned: r.user.bannedAt !== null,
+  const rows = await prisma.$queryRaw<
+    (Omit<ListedReview, "authorPrivate"> & { authorIsPrivate: boolean })[]
+  >`
+    SELECT rv.id, rv."userId" AS "authorId", u.name AS "authorName",
+      u."privilegeLevel" AS "authorLevel",
+      u."bannedAt" IS NOT NULL AS "authorBanned",
+      u."isPrivate" AS "authorIsPrivate",
+      rv.rating, rv.comment, rv."createdAt",
+      rv."editedAt" IS NOT NULL AS edited,
+      rv."moderatedAt" IS NOT NULL AS moderated,
+      (SELECT COUNT(*)::int FROM "ReviewVote" x
+        WHERE x."reviewId" = rv.id AND x.type = 'LIKE') AS likes,
+      (SELECT COUNT(*)::int FROM "ReviewVote" x
+        WHERE x."reviewId" = rv.id AND x.type = 'DISLIKE') AS dislikes,
+      (SELECT x.type::text FROM "ReviewVote" x
+        WHERE x."reviewId" = rv.id AND x."userId" = ${viewer?.id ?? ""}) AS "viewerVote"
+    FROM "Review" rv
+    JOIN "User" u ON u.id = rv."userId"
+    -- Reviews by private profiles are hidden (their ratings still count)
+    WHERE rv."recipeId" = ${recipeId} AND rv.comment IS NOT NULL
+      AND ${visibleUserSql(viewer, "u")}`;
+  return rows
+    .map(({ authorIsPrivate, ...r }) => ({
+      ...r,
       authorPrivate: hasPrivateProfile({
-        isPrivate: r.user.isPrivate,
-        level: r.user.privilegeLevel,
+        isPrivate: authorIsPrivate,
+        level: r.authorLevel,
       }),
-      rating: r.rating,
-      comment: r.comment ?? "",
-      createdAt: r.createdAt,
-      edited: r.editedAt !== null,
-      moderated: r.moderatedAt !== null,
-      likes: count(r.id, "LIKE"),
-      dislikes: count(r.id, "DISLIKE"),
-      viewerVote: viewerVotes.find((v) => v.reviewId === r.id)?.type ?? null,
     }))
     .sort(compareReviews);
-}
-
-export async function getViewerReview(recipeId: string, userId: string) {
-  return prisma.review.findUnique({
-    where: { recipeId_userId: { recipeId, userId } },
-    select: { rating: true, comment: true },
-  });
 }
 
 // ─────────────────────────────── Dashboard ───────────────────────────────

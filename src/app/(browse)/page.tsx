@@ -2,8 +2,9 @@ import { SearchX } from "lucide-react";
 import Link from "next/link";
 import { BrowseFilters } from "@/components/browse-filters";
 import { RecipeFeed } from "@/components/recipe-feed";
+import { RecipeRow } from "@/components/recipe-row";
 import { Button } from "@/components/ui/button";
-import { countRecipes, getRecipeFeed } from "@/lib/data";
+import { getBrowseLists } from "@/lib/data";
 import { labelFromSlug } from "@/lib/labels";
 import { canCreateRecipe } from "@/lib/privileges";
 import {
@@ -23,12 +24,15 @@ export default async function BrowsePage(props: PageProps<"/">) {
   const viewer = user
     ? { id: user.id, level: user.level, banned: user.banned }
     : null;
-  const [recipes, total] = await Promise.all([
-    getRecipeFeed(filters, filters.sort, filters.shown, viewer),
-    countRecipes(filters, viewer),
-  ]);
+  // The feed and the rows above it (which follow the filters, not the sort)
+  const { recipes, total, loved, hottest } = await getBrowseLists(
+    filters,
+    viewer,
+  );
+  const loginUrl = loginHref(browseHref(filters));
   const filtered = hasActiveFilters(filters);
   const hasMore = recipes.length < total && filters.shown < MAX_SHOWN;
+  const hasRows = loved.length > 0 || hottest.length > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -72,19 +76,43 @@ export default async function BrowsePage(props: PageProps<"/">) {
           )}
         </div>
       ) : (
-        <RecipeFeed
-          // A new filter or sort starts a fresh list (fresh focus/loading state)
-          key={browseHref(filters)}
-          recipes={recipes}
-          moreHref={
-            hasMore
-              ? browseHref({ ...filters, shown: filters.shown + PAGE_SIZE })
-              : null
-          }
-          capped={recipes.length < total && !hasMore}
-          viewer={viewer}
-          loginUrl={loginHref(browseHref(filters))}
-        />
+        <>
+          {/* Row recipes are always among the results, so rows need no empty state */}
+          {viewer && loved.length > 0 && (
+            <RecipeRow
+              title="What you love"
+              recipes={loved}
+              viewer={viewer}
+              loginUrl={loginUrl}
+            />
+          )}
+          {hottest.length > 0 && (
+            <RecipeRow
+              title="Hottest this week"
+              recipes={hottest}
+              viewer={viewer}
+              loginUrl={loginUrl}
+            />
+          )}
+          {hasRows && (
+            <h2 className="text-xl font-semibold tracking-tight">
+              All recipes
+            </h2>
+          )}
+          <RecipeFeed
+            // A new filter or sort starts a fresh list (fresh focus/loading state)
+            key={browseHref(filters)}
+            recipes={recipes}
+            moreHref={
+              hasMore
+                ? browseHref({ ...filters, shown: filters.shown + PAGE_SIZE })
+                : null
+            }
+            capped={recipes.length < total && !hasMore}
+            viewer={viewer}
+            loginUrl={loginUrl}
+          />
+        </>
       )}
     </div>
   );

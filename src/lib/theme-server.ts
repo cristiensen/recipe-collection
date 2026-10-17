@@ -1,6 +1,7 @@
 import "server-only";
 import { unstable_rethrow } from "next/navigation";
 import { cache } from "react";
+import { userChanged } from "@/lib/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { pickTheme, type Theme, toPreference } from "@/lib/theme";
@@ -28,5 +29,6 @@ export async function saveTheme(theme: Theme) {
       where: { id: user.id },
       data: { theme: toPreference(theme) },
     });
+    userChanged(user.id);
   }
 }
