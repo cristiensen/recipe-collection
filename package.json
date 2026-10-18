@@ -16,6 +16,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "set-level": "node scripts/set-level.mjs",
+    "set-password": "node scripts/set-password.mjs",
     "seed:layout": "node scripts/seed-layout.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
     "check:blob": "node scripts/check-blob.mjs"

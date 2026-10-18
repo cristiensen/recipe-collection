@@ -59,6 +59,7 @@ The same script works for recovery if no admin can log in.
 | `npm run seed:layout` | Add 15 dummy recipes for layout testing (`-- --remove` deletes them; photos display under `npm run dev` only) |
 | `npm run seed:demo` | Add 40 realistic demo recipes with photos (on Vercel Blob), reviews and likes (`-- --remove` deletes them) |
 | `npm run set-level -- <email> <1\|2\|10\|100>` | Set an account's privilege level directly in the database |
+| `npm run set-password -- <email>` | Set a new password for an account (asks for it without echoing; there is no reset email) |
 
 First e2e run: `npx playwright install chromium`.
 

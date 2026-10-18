@@ -3,6 +3,7 @@ import { cache } from "react";
 import { Prisma } from "@/generated/prisma/client";
 import type { Label, VoteType } from "@/generated/prisma/enums";
 import { cachedRecipeData } from "@/lib/cache";
+import { labelsMatching } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { type Actor, hasPrivateProfile } from "@/lib/privileges";
 import {
@@ -50,6 +51,16 @@ const ORDER_BY: Record<SortKey, Prisma.Sql> = {
   "time-desc": Prisma.sql`r."cookingMinutes" DESC, r."createdAt" DESC, r.id DESC`,
 };
 
+/** Most words of a search that are matched (the rest are ignored). */
+const MAX_SEARCH_WORDS = 8;
+
+function searchWords(query: string | undefined) {
+  return [...new Set((query ?? "").split(" ").filter(Boolean))].slice(
+    0,
+    MAX_SEARCH_WORDS,
+  );
+}
+
 /**
  * FROM + WHERE for the browse feed and the rows above it. It's SQL rather
  * than a Prisma query because sorting and filtering by average rating need
@@ -63,6 +74,21 @@ function feedQuery(
 ) {
   // Recipes by private authors are hidden
   const conditions: Prisma.Sql[] = [visibleUserSql(viewer, "a")];
+  // Search: every word must appear in the title, description, an ingredient
+  // or the name of one of the recipe's labels
+  for (const word of searchWords(filters.query)) {
+    const pattern = `%${word.replace(/[\\%_]/g, "\\$&")}%`;
+    const labels = labelsMatching(word);
+    const byLabel =
+      labels.length > 0
+        ? Prisma.sql`OR r.labels && ${labels}::"Label"[]`
+        : Prisma.empty;
+    conditions.push(Prisma.sql`(r.title ILIKE ${pattern}
+      OR r.description ILIKE ${pattern}
+      OR EXISTS (SELECT 1 FROM "Ingredient" g
+        WHERE g."recipeId" = r.id AND g.name ILIKE ${pattern})
+      ${byLabel})`);
+  }
   // US-3.2: a recipe must have *all* selected labels
   if (filters.labels.length > 0) {
     conditions.push(Prisma.sql`r.labels @> ${filters.labels}::"Label"[]`);
@@ -222,11 +248,13 @@ export async function getMostLikedThisWeek(
 }
 
 async function loadBrowseLists(filters: BrowseFilters, viewer: Viewer) {
+  // Search results are shown without the rows
+  const rows = !filters.query;
   const [feed, hottest, loved] = await cardLists(
     [
       feedList(filters, viewer),
-      mostViewedList(filters, viewer),
-      ...(viewer ? [lovedList(filters, viewer)] : []),
+      ...(rows ? [mostViewedList(filters, viewer)] : []),
+      ...(rows && viewer ? [lovedList(filters, viewer)] : []),
     ],
     viewer?.id ?? null,
   );
@@ -235,8 +263,9 @@ async function loadBrowseLists(filters: BrowseFilters, viewer: Viewer) {
     recipes: feed.recipes,
     /** Every recipe matching the filters. */
     total: feed.total,
-    hottest: hottest.recipes,
-    /** Empty for guests. */
+    /** Empty while searching. */
+    hottest: hottest?.recipes ?? [],
+    /** Empty for guests and while searching. */
     loved: loved?.recipes ?? [],
   };
 }

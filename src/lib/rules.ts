@@ -138,7 +138,21 @@ function parseSort(value: string | undefined): SortKey {
 /** Minimum average rating filter: 1, 1.5, … 5. */
 export const MIN_RATING_OPTIONS = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5] as const;
 
+/** Longest search accepted from the URL. */
+export const MAX_QUERY_LENGTH = 100;
+
+/** A search as it's stored in the URL: trimmed, single-spaced and capped. */
+export function normalizeQuery(value: string | undefined): string {
+  return (value ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, MAX_QUERY_LENGTH)
+    .trim();
+}
+
 export type BrowseFilters = {
+  /** Words every result must contain (title, description or ingredients). */
+  query: string;
   labels: Label[];
   maxTime: number | null;
   /** Only recipes whose average rating is at least this (unrated ones excluded). */
@@ -162,7 +176,7 @@ export function clampShown(value: unknown): number {
 }
 
 /**
- * US-3.2: filters live in the URL (`?labels=vegan,spicy&maxTime=30`), plus
+ * US-3.2: filters live in the URL (`?q=pasta&labels=vegan,spicy&maxTime=30`), plus
  * `shown=24` once "Load more" was used, so Back and shared links restore the list.
  */
 export function parseBrowseFilters(
@@ -188,6 +202,7 @@ export function parseBrowseFilters(
     ? rating
     : null;
   return {
+    query: normalizeQuery(first(params.q)),
     labels,
     maxTime,
     minRating,
@@ -196,12 +211,13 @@ export function parseBrowseFilters(
   };
 }
 
-/** The filters that narrow the list (everything except how many are shown). */
+/** What narrows the list (everything except how many are shown). */
 export type FeedFilters = Pick<
   BrowseFilters,
   "labels" | "maxTime" | "minRating"
->;
+> & { query?: string };
 
+/** Whether labels, cooking time or rating narrow the list (search aside). */
 export function hasActiveFilters(filters: FeedFilters) {
   return (
     filters.labels.length > 0 ||
@@ -215,6 +231,8 @@ export function browseHref(
   filters: FeedFilters & { sort?: SortKey; shown?: number },
 ): string {
   const params = new URLSearchParams();
+  const query = normalizeQuery(filters.query);
+  if (query) params.set("q", query);
   if (filters.labels.length > 0) {
     params.set("labels", filters.labels.map(labelSlug).join(","));
   }

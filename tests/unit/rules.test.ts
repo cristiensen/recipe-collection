@@ -128,6 +128,7 @@ describe("browse filters (US-3.2)", () => {
         labelFromSlug,
       ),
     ).toEqual({
+      query: "",
       labels: ["VEGAN", "SPICY"],
       maxTime: 30,
       minRating: null,
@@ -147,6 +148,7 @@ describe("browse filters (US-3.2)", () => {
     expect(
       parseBrowseFilters({ maxTime: "45", shown: "-3" }, labelFromSlug),
     ).toEqual({
+      query: "",
       labels: [],
       maxTime: null,
       minRating: null,

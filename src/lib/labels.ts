@@ -22,6 +22,14 @@ export function labelFromSlug(slug: string): Label | undefined {
   return LABELS.find((l) => l.slug === slug)?.value;
 }
 
+/** Labels whose name contains a search word ("veg" → Vegan, Vegetarian). */
+export function labelsMatching(word: string): Label[] {
+  const w = word.toLowerCase();
+  return LABELS.filter((l) => l.name.toLowerCase().includes(w)).map(
+    (l) => l.value,
+  );
+}
+
 export function labelSlug(value: Label): string {
   return LABELS.find((l) => l.value === value)?.slug ?? value.toLowerCase();
 }

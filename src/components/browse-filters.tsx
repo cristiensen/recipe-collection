@@ -31,18 +31,26 @@ import {
 
 /**
  * Label, cooking-time and minimum-rating filters plus the sort order, kept
- * in the URL (US-3.2). Up to
+ * in the URL (US-3.2) alongside the header's search. Up to
  * MAX_VISIBLE_LABELS labels show as chips; the rest are in a searchable
  * "See all filters" dropdown.
  */
 type Selection = FeedFilters & { sort: SortKey };
 
-export function BrowseFilters({ labels, maxTime, minRating, sort }: Selection) {
+export function BrowseFilters({
+  query,
+  labels,
+  maxTime,
+  minRating,
+  sort,
+}: Selection) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   // Shows the new selection immediately; settles on the URL's filters once
   // the navigation finishes.
   const [filters, setOptimistic] = useOptimistic<Selection>({
+    // Filtering keeps the search (only a new search resets the filters)
+    query,
     labels,
     maxTime,
     minRating,

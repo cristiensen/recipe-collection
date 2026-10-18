@@ -5,6 +5,7 @@ import { logOutAction } from "@/app/actions/auth";
 import { BackToTop } from "@/components/back-to-top";
 import { LoginLink } from "@/components/login-link";
 import { MobileMenu } from "@/components/mobile-menu";
+import { RecipeSearch, RecipeSearchFallback } from "@/components/recipe-search";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,11 +24,18 @@ export async function SiteHeader({ theme }: { theme: Theme }) {
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-2 px-4 sm:px-6">
         <Link
           href="/"
-          className="mr-auto flex items-center gap-2 font-semibold"
+          className="flex shrink-0 items-center gap-2 font-semibold"
         >
           <ChefHat className="size-5" aria-hidden />
-          <span>Recipe Collection</span>
+          {/* Phones show just the icon, to leave room for the search */}
+          <span className="sr-only md:not-sr-only">Recipe Collection</span>
         </Link>
+
+        <div className="flex min-w-0 flex-1 justify-center px-1 sm:px-4">
+          <Suspense fallback={<RecipeSearchFallback />}>
+            <RecipeSearch />
+          </Suspense>
+        </div>
 
         {/* Desktop (lg and up): every action as a button */}
         <div className="hidden items-center gap-2 lg:flex">

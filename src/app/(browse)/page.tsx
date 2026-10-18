@@ -31,8 +31,10 @@ export default async function BrowsePage(props: PageProps<"/">) {
   );
   const loginUrl = loginHref(browseHref(filters));
   const filtered = hasActiveFilters(filters);
+  const { query } = filters;
   const hasMore = recipes.length < total && filters.shown < MAX_SHOWN;
-  const hasRows = loved.length > 0 || hottest.length > 0;
+  // Search results come on their own, without the rows
+  const hasRows = !query && (loved.length > 0 || hottest.length > 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -46,6 +48,7 @@ export default async function BrowsePage(props: PageProps<"/">) {
       </div>
 
       <BrowseFilters
+        query={query}
         labels={filters.labels}
         maxTime={filters.maxTime}
         minRating={filters.minRating}
@@ -56,14 +59,28 @@ export default async function BrowsePage(props: PageProps<"/">) {
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-16 text-center">
           <SearchX aria-hidden className="size-10 text-muted-foreground" />
           <h2 className="text-lg font-semibold">
-            {filtered ? "No recipes match these filters" : "No recipes yet"}
+            {query
+              ? `No recipes match “${query}”`
+              : filtered
+                ? "No recipes match these filters"
+                : "No recipes yet"}
           </h2>
           <p className="max-w-sm text-muted-foreground">
-            {filtered
-              ? "Try removing a label, allowing a longer cooking time or lowering the minimum rating."
-              : "Check back soon for something delicious."}
+            {query
+              ? filtered
+                ? "Check the spelling, try other words or remove some filters."
+                : "Check the spelling or try other words."
+              : filtered
+                ? "Try removing a label, allowing a longer cooking time or lowering the minimum rating."
+                : "Check back soon for something delicious."}
           </p>
-          {filtered ? (
+          {query ? (
+            <Button asChild variant="outline">
+              <Link href={browseHref({ ...filters, query: "", shown: 0 })}>
+                Clear search
+              </Link>
+            </Button>
+          ) : filtered ? (
             <Button asChild variant="outline">
               <Link href="/">Clear filters</Link>
             </Button>
@@ -78,7 +95,7 @@ export default async function BrowsePage(props: PageProps<"/">) {
       ) : (
         <>
           {/* Row recipes are always among the results, so rows need no empty state */}
-          {viewer && loved.length > 0 && (
+          {hasRows && viewer && loved.length > 0 && (
             <RecipeRow
               title="What you love"
               recipes={loved}
@@ -86,7 +103,7 @@ export default async function BrowsePage(props: PageProps<"/">) {
               loginUrl={loginUrl}
             />
           )}
-          {hottest.length > 0 && (
+          {hasRows && hottest.length > 0 && (
             <RecipeRow
               title="Hottest this week"
               recipes={hottest}
@@ -94,10 +111,19 @@ export default async function BrowsePage(props: PageProps<"/">) {
               loginUrl={loginUrl}
             />
           )}
-          {hasRows && (
-            <h2 className="text-xl font-semibold tracking-tight">
-              All recipes
+          {query ? (
+            <h2
+              className="text-xl font-semibold tracking-tight"
+              aria-live="polite"
+            >
+              {total === 1 ? "1 recipe" : `${total} recipes`} matching “{query}”
             </h2>
+          ) : (
+            hasRows && (
+              <h2 className="text-xl font-semibold tracking-tight">
+                All recipes
+              </h2>
+            )
           )}
           <RecipeFeed
             // A new filter or sort starts a fresh list (fresh focus/loading state)

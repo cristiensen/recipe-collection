@@ -4,6 +4,7 @@ import {
   labelCountError,
   labelFromSlug,
   labelLimit,
+  labelsMatching,
   MAX_LABELS,
   MAX_VISIBLE_LABELS,
   visibleLabelChips,
@@ -12,6 +13,7 @@ import {
   browseHref,
   clampShown,
   hasActiveFilters,
+  MAX_QUERY_LENGTH,
   MAX_SHOWN,
   MIN_RATING_OPTIONS,
   parseBrowseFilters,
@@ -158,5 +160,46 @@ describe("sort order", () => {
     expect(
       parseBrowseFilters({ sort: "1; DROP TABLE" }, labelFromSlug).sort,
     ).toBe("newest");
+  });
+});
+
+describe("search", () => {
+  it("is written to and read from the URL, tidied up", () => {
+    expect(
+      browseHref({
+        query: "  tomato   soup ",
+        labels: [],
+        maxTime: null,
+        minRating: null,
+      }),
+    ).toBe("/?q=tomato+soup");
+    expect(
+      parseBrowseFilters({ q: " pasta  bake " }, labelFromSlug).query,
+    ).toBe("pasta bake");
+    expect(parseBrowseFilters({}, labelFromSlug).query).toBe("");
+  });
+  it("caps very long searches", () => {
+    expect(
+      parseBrowseFilters({ q: "a".repeat(500) }, labelFromSlug).query,
+    ).toHaveLength(MAX_QUERY_LENGTH);
+  });
+  it("doesn't count as a filter", () => {
+    expect(
+      hasActiveFilters({
+        query: "pasta",
+        labels: [],
+        maxTime: null,
+        minRating: null,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("labelsMatching", () => {
+  it("finds labels whose name contains the word, ignoring case", () => {
+    expect(labelsMatching("VEG")).toEqual(["VEGAN", "VEGETARIAN"]);
+    expect(labelsMatching("free")).toEqual(["GLUTEN_FREE", "DAIRY_FREE"]);
+    expect(labelsMatching("gluten-free")).toEqual(["GLUTEN_FREE"]);
+    expect(labelsMatching("pasta")).toEqual([]);
   });
 });
