@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { Toaster } from "@/components/ui/sonner";
 import { getTheme } from "@/lib/theme-server";
@@ -48,8 +49,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
           {children}
         </main>
-        <footer className="border-t py-6 text-center text-sm text-muted-foreground">
-          Recipe Collection
+        <footer className="flex justify-center gap-2 border-t py-6 text-sm text-muted-foreground">
+          <span>Recipe Collection</span>
+          <span aria-hidden>·</span>
+          <Link href="/policy" className="underline-offset-4 hover:underline">
+            Policy
+          </Link>
         </footer>
         <Toaster theme={theme} />
       </body>
