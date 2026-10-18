@@ -4,10 +4,10 @@ import { createUser, deleteUsers, insertRecipe } from "./db";
 const run = Date.now();
 const chef = `loadmore-${run}@e2e.test`;
 
-// At least two batches of 12 exist whatever else is in the database
+// At least three batches of 12 exist whatever else is in the database
 test.beforeAll(async () => {
   await createUser(chef, "Load More Chef", 2, "password-123");
-  for (let i = 0; i < 13; i++)
+  for (let i = 0; i < 25; i++)
     await insertRecipe(chef, `E2E Feed ${run} #${i}`);
 });
 test.afterAll(() => deleteUsers(`%-${run}@e2e.test`));

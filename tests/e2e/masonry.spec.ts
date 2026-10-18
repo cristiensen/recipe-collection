@@ -16,6 +16,8 @@ const titles: string[] = [];
 // Cards of clearly different heights: short/long titles and 0–6 labels
 test.beforeAll(async () => {
   await createUser(chef, "Masonry Chef", 2, "password-123");
+  // Oldest, so it's in the second batch: guarantees a "Load more" button
+  await insertRecipe(chef, `E2E Masonry ${run} filler`);
   for (let i = 11; i >= 0; i--) {
     const title =
       i % 3 === 0
