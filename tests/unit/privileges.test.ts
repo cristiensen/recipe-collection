@@ -13,6 +13,8 @@ import {
   canModerateReview,
   canOpenDashboard,
   canSeeContentOf,
+  canSeeHiddenRecipes,
+  canSeeRecipe,
   canSetLevel,
   hasPrivateProfile,
   isPrivilegeLevel,
@@ -229,5 +231,39 @@ describe("labels", () => {
       true,
     );
     expect(canDeleteAnyLabel(actor(LEVEL.ADMIN, true))).toBe(false);
+  });
+});
+
+describe("recipes hidden from the public", () => {
+  const recipe = (isPublic: boolean, isPrivate = false) => ({
+    isPublic,
+    author: { id: "owner", isPrivate, level: LEVEL.CHEF },
+  });
+
+  it("everyone sees public recipes", () => {
+    expect(canSeeRecipe(null, recipe(true))).toBe(true);
+    expect(canSeeRecipe(user, recipe(true))).toBe(true);
+  });
+
+  it("only the author and chefs and up see hidden recipes", () => {
+    const hidden = recipe(false);
+    expect(canSeeRecipe(null, hidden)).toBe(false);
+    expect(canSeeRecipe(user, hidden)).toBe(false);
+    expect(canSeeRecipe(chef, hidden)).toBe(true);
+    expect(canSeeRecipe(mod, hidden)).toBe(true);
+    expect(canSeeRecipe(admin, hidden)).toBe(true);
+    // The author, even when demoted or read-only
+    expect(canSeeRecipe(actor(LEVEL.USER, true, "owner"), hidden)).toBe(true);
+  });
+
+  it("banned chefs lose access to hidden recipes", () => {
+    expect(canSeeHiddenRecipes(actor(LEVEL.CHEF, true))).toBe(false);
+    expect(canSeeRecipe(actor(LEVEL.CHEF, true), recipe(false))).toBe(false);
+  });
+
+  it("a private profile still hides its public recipes from chefs", () => {
+    expect(canSeeRecipe(chef, recipe(true, true))).toBe(false);
+    expect(canSeeRecipe(chef, recipe(false, true))).toBe(false);
+    expect(canSeeRecipe(mod, recipe(false, true))).toBe(true);
   });
 });

@@ -24,12 +24,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-/** Owner-only settings on their profile: display name, visibility, labels, password, delete account. */
+/** Owner-only settings on their profile: display name, visibility, recipe visibility, labels, password, delete account. */
 export function AccountSettings({
   name,
   canRename,
   isPrivate,
   canChooseVisibility,
+  recipes,
   labels,
 }: {
   name: string;
@@ -39,6 +40,8 @@ export function AccountSettings({
   isPrivate: boolean;
   /** Chefs and up (not banned) can change it. */
   canChooseVisibility: boolean;
+  /** The Recipe visibility section, for authors. */
+  recipes?: React.ReactNode;
   /** The Labels section, for chefs and up. */
   labels?: React.ReactNode;
 }) {
@@ -48,6 +51,7 @@ export function AccountSettings({
       {(canChooseVisibility || isPrivate) && (
         <VisibilityForm isPrivate={isPrivate} canChoose={canChooseVisibility} />
       )}
+      {recipes}
       {labels}
       <PasswordForm />
       <DeleteAccount />

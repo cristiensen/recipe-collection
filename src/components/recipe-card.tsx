@@ -1,6 +1,7 @@
 import { Clock, ImageOff } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { HiddenRecipeBadge } from "@/components/hidden-recipe-badge";
 import { LikeButton } from "@/components/like-button";
 import { PrivateBadge } from "@/components/private-badge";
 import { Stars } from "@/components/stars";
@@ -67,7 +68,12 @@ export function RecipeCard({
         />
       </div>
       <div className="flex flex-1 flex-col gap-2 p-4">
-        {recipe.authorPrivate && <PrivateBadge className="w-fit" />}
+        {(recipe.authorPrivate || !recipe.isPublic) && (
+          <div className="flex flex-wrap gap-1.5">
+            {recipe.authorPrivate && <PrivateBadge />}
+            {!recipe.isPublic && <HiddenRecipeBadge />}
+          </div>
+        )}
         <Title className="line-clamp-2 font-semibold leading-snug">
           <Link
             href={`/recipes/${recipe.id}`}

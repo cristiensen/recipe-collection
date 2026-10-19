@@ -5,7 +5,11 @@ import { Prisma } from "@/generated/prisma/client";
 import { VoteType } from "@/generated/prisma/enums";
 import { recipesChanged } from "@/lib/cache";
 import { prisma } from "@/lib/prisma";
-import { canSeeContentOf, READ_ONLY_MESSAGE } from "@/lib/privileges";
+import {
+  canSeeContentOf,
+  canSeeRecipe,
+  READ_ONLY_MESSAGE,
+} from "@/lib/privileges";
 import {
   canReviewRecipe,
   canVoteOnReview,
@@ -35,15 +39,19 @@ export async function saveReview(
     where: { id: recipeId },
     select: {
       authorId: true,
+      isPublic: true,
       author: { select: { id: true, isPrivate: true, privilegeLevel: true } },
     },
   });
   if (
     !recipe ||
-    !canSeeContentOf(user, {
-      id: recipe.author.id,
-      isPrivate: recipe.author.isPrivate,
-      level: recipe.author.privilegeLevel,
+    !canSeeRecipe(user, {
+      isPublic: recipe.isPublic,
+      author: {
+        id: recipe.author.id,
+        isPrivate: recipe.author.isPrivate,
+        level: recipe.author.privilegeLevel,
+      },
     })
   )
     return { ok: false, errors: { _form: "This recipe no longer exists" } };
@@ -137,6 +145,7 @@ export async function voteOnReview(
       user: { select: { id: true, isPrivate: true, privilegeLevel: true } },
       recipe: {
         select: {
+          isPublic: true,
           author: {
             select: { id: true, isPrivate: true, privilegeLevel: true },
           },
@@ -152,10 +161,13 @@ export async function voteOnReview(
       isPrivate: review.user.isPrivate,
       level: review.user.privilegeLevel,
     }) ||
-    !canSeeContentOf(user, {
-      id: review.recipe.author.id,
-      isPrivate: review.recipe.author.isPrivate,
-      level: review.recipe.author.privilegeLevel,
+    !canSeeRecipe(user, {
+      isPublic: review.recipe.isPublic,
+      author: {
+        id: review.recipe.author.id,
+        isPrivate: review.recipe.author.isPrivate,
+        level: review.recipe.author.privilegeLevel,
+      },
     })
   ) {
     return { ok: false, error: "This review no longer exists" };

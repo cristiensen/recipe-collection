@@ -6,11 +6,13 @@ import { AccountSettings } from "@/components/account-settings";
 import { LabelSettings } from "@/components/label-settings";
 import { PrivateBadge } from "@/components/private-badge";
 import { RecipeFeed } from "@/components/recipe-feed";
+import { RecipeVisibilitySettings } from "@/components/recipe-visibility-settings";
 import { Badge } from "@/components/ui/badge";
 import {
   getLabels,
   getLikedRecipes,
   getManagedLabels,
+  getOwnRecipeVisibility,
   getUserProfile,
   getUserRecipes,
 } from "@/lib/data";
@@ -24,7 +26,7 @@ import {
   LABEL_DELETE_WINDOW_MS,
   levelName,
 } from "@/lib/privileges";
-import { clampShown, MAX_SHOWN, PAGE_SIZE } from "@/lib/rules";
+import { canEditRecipe, clampShown, MAX_SHOWN, PAGE_SIZE } from "@/lib/rules";
 import { getCurrentUser } from "@/lib/session";
 import { loginHref } from "@/lib/urls";
 import { cn } from "@/lib/utils";
@@ -155,6 +157,7 @@ export default async function ProfilePage(props: PageProps<"/users/[id]">) {
           canRename={canChangeDisplayName(viewer)}
           isPrivate={profile.isPrivate}
           canChooseVisibility={canChooseProfileVisibility(viewer)}
+          recipes={<SettingsRecipes viewer={viewer} />}
           labels={<SettingsLabels viewer={viewer} />}
         />
       ) : (
@@ -168,6 +171,22 @@ export default async function ProfilePage(props: PageProps<"/users/[id]">) {
         />
       )}
     </div>
+  );
+}
+
+/** Settings → Recipe visibility, for those who have written recipes. */
+async function SettingsRecipes({
+  viewer,
+}: {
+  viewer: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
+}) {
+  const recipes = await getOwnRecipeVisibility(viewer.id);
+  if (recipes.length === 0) return null;
+  return (
+    <RecipeVisibilitySettings
+      recipes={recipes}
+      canChange={canEditRecipe(viewer, { authorId: viewer.id })}
+    />
   );
 }
 

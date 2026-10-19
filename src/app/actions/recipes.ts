@@ -180,6 +180,54 @@ export async function updateRecipe(
   redirect(`/recipes/${recipeId}`);
 }
 
+export type VisibilityResult =
+  | { ok: true; isPublic: boolean }
+  | { ok: false; error: string };
+
+/**
+ * The author shows or hides a recipe from the public (chefs and up still see
+ * hidden ones). Takes the desired state, like `setRecipeLike`.
+ */
+export async function setRecipeVisibility(
+  recipeId: string,
+  isPublic: boolean,
+): Promise<VisibilityResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Please log in to edit recipes" };
+  if (typeof isPublic !== "boolean") {
+    return { ok: false, error: "Choose public or hidden" };
+  }
+
+  const existing = await prisma.recipe.findUnique({
+    where: { id: recipeId },
+    select: { authorId: true },
+  });
+  if (!existing) return { ok: false, error: "This recipe no longer exists" };
+  // BR-5
+  if (!canEditRecipe(user, existing)) {
+    return {
+      ok: false,
+      error: user.banned
+        ? READ_ONLY_MESSAGE
+        : "You can only change your own recipes",
+    };
+  }
+
+  try {
+    // Raw SQL so `updatedAt` stays the last edit of the recipe itself
+    await prisma.$executeRaw`
+      UPDATE "Recipe" SET "isPublic" = ${isPublic} WHERE id = ${recipeId}`;
+  } catch (e) {
+    console.error("setRecipeVisibility failed", e);
+    return { ok: false, error: "That wasn't saved. Please try again." };
+  }
+
+  // Affects browse, the recipe page, profiles and settings
+  recipesChanged();
+  revalidatePath("/", "layout");
+  return { ok: true, isPublic };
+}
+
 export async function deleteRecipe(
   recipeId: string,
 ): Promise<{ ok: false; error: string }> {

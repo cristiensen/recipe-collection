@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { recipesChanged } from "@/lib/cache";
 import { prisma } from "@/lib/prisma";
-import { canSeeContentOf, READ_ONLY_MESSAGE } from "@/lib/privileges";
+import { canSeeRecipe, READ_ONLY_MESSAGE } from "@/lib/privileges";
 import { canLikeRecipe } from "@/lib/rules";
 import { getCurrentUser } from "@/lib/session";
 
@@ -26,16 +26,20 @@ export async function setRecipeLike(
     where: { id: recipeId },
     select: {
       authorId: true,
+      isPublic: true,
       author: { select: { id: true, isPrivate: true, privilegeLevel: true } },
     },
   });
-  // Private authors' recipes look deleted to those who can't see them
+  // Private authors' and hidden recipes look deleted to those who can't see them
   if (
     !recipe ||
-    !canSeeContentOf(user, {
-      id: recipe.author.id,
-      isPrivate: recipe.author.isPrivate,
-      level: recipe.author.privilegeLevel,
+    !canSeeRecipe(user, {
+      isPublic: recipe.isPublic,
+      author: {
+        id: recipe.author.id,
+        isPrivate: recipe.author.isPrivate,
+        level: recipe.author.privilegeLevel,
+      },
     })
   ) {
     return { ok: false, error: "This recipe no longer exists" };

@@ -19,7 +19,7 @@ import {
   type SortKey,
 } from "@/lib/rules";
 import { TRENDING_DAYS, trendingCutoff } from "@/lib/views";
-import { visibleUserSql } from "@/lib/visibility";
+import { visibleRecipeSql, visibleUserSql } from "@/lib/visibility";
 
 // Hosted Postgres bills every query, so each list of cards below is one SQL
 // statement (cards, their numbers and the list's total together), and pages
@@ -41,6 +41,8 @@ export type RecipeCardData = {
   liked: boolean;
   /** Its author's profile is private (only they and staff can see it). */
   authorPrivate: boolean;
+  /** Off when hidden from the public (only its author and chefs and up see it). */
+  isPublic: boolean;
 };
 
 /** The person looking at the page (null for guests). */
@@ -79,8 +81,8 @@ function feedQuery(
   viewer: Viewer,
   join: Prisma.Sql = Prisma.empty,
 ) {
-  // Recipes by private authors are hidden
-  const conditions: Prisma.Sql[] = [visibleUserSql(viewer, "a")];
+  // Recipes by private authors, and hidden recipes, are left out
+  const conditions: Prisma.Sql[] = [visibleRecipeSql(viewer, "r", "a")];
   // Search: every word must appear in the title, description, an ingredient
   // or the name of one of the recipe's labels
   for (const word of searchWords(filters.query)) {
@@ -147,7 +149,7 @@ async function cardLists(
   if (lists.length === 0) return result;
   const rows = await prisma.$queryRaw<CardRow[]>`
     SELECT o.list, o.total::int AS total,
-      r.id, r.title, r."cookingMinutes",
+      r.id, r.title, r."cookingMinutes", r."isPublic",
       ARRAY(SELECT lb.name FROM unnest(r.labels) WITH ORDINALITY u(slug, n)
         JOIN "Label" lb ON lb.slug = u.slug ORDER BY u.n) AS labels,
       r."authorId", a.name AS "authorName",
@@ -391,7 +393,9 @@ export async function getUserRecipes(
   const [list] = await cardLists(
     [
       listQuery(
-        Prisma.sql`FROM "Recipe" r WHERE r."authorId" = ${userId}`,
+        Prisma.sql`FROM "Recipe" r
+          JOIN "User" a ON a.id = r."authorId"
+          WHERE r."authorId" = ${userId} AND ${visibleRecipeSql(viewer, "r", "a")}`,
         Prisma.sql`r."createdAt" DESC, r.id DESC`,
         take,
       ),
@@ -413,7 +417,7 @@ export async function getLikedRecipes(
         Prisma.sql`FROM "RecipeLike" l
           JOIN "Recipe" r ON r.id = l."recipeId"
           JOIN "User" a ON a.id = r."authorId"
-          WHERE l."userId" = ${userId} AND ${visibleUserSql(viewer, "a")}`,
+          WHERE l."userId" = ${userId} AND ${visibleRecipeSql(viewer, "r", "a")}`,
         Prisma.sql`l."createdAt" DESC, l."recipeId" DESC`,
         take,
       ),
@@ -421,6 +425,15 @@ export async function getLikedRecipes(
     viewer?.id ?? null,
   );
   return list;
+}
+
+/** Settings → Recipe visibility: every recipe a user wrote, newest first. */
+export function getOwnRecipeVisibility(userId: string) {
+  return prisma.recipe.findMany({
+    where: { authorId: userId },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: { id: true, title: true, isPublic: true },
+  });
 }
 
 // ─────────────────────────────── Recipe page ───────────────────────────────

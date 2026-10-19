@@ -2,7 +2,7 @@ import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { Actor } from "@/lib/privileges";
-import { visibleUserSql } from "@/lib/visibility";
+import { visibleRecipeSql } from "@/lib/visibility";
 
 /** How far back "this week" rows look, and how long daily view counts are kept. */
 export const TRENDING_DAYS = 7;
@@ -23,7 +23,7 @@ export async function recordRecipeView(recipeId: string, viewer: Actor | null) {
       FROM "User" a
       WHERE r.id = ${recipeId} AND a.id = r."authorId"
         AND a.id <> ${viewer?.id ?? ""}
-        AND ${visibleUserSql(viewer, "a")}
+        AND ${visibleRecipeSql(viewer, "r", "a")}
       RETURNING r.id
     )
     INSERT INTO "RecipeViewDay" ("recipeId", day, count)

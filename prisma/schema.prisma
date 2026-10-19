@@ -111,6 +111,8 @@ model Recipe {
   videoUrl       String?
   /// All-time views. Bumped with raw SQL so `updatedAt` stays the last edit.
   viewCount      Int      @default(0)
+  /// Off = hidden from the public: only its author and chefs and up see it.
+  isPublic       Boolean  @default(true)
   authorId       String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

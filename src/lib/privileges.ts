@@ -141,6 +141,32 @@ export function canChooseProfileVisibility(actor: Actor | null) {
   return canWrite(actor) && actor.level >= LEVEL.CHEF;
 }
 
+// ─────────────────────────────── Hidden recipes ───────────────────────────────
+
+/** Chefs and up (not banned) also see recipes hidden from the public. */
+export function canSeeHiddenRecipes(actor: Actor | null) {
+  return canWrite(actor) && actor.level >= LEVEL.CHEF;
+}
+
+/**
+ * A recipe is visible when its author's profile is (`canSeeContentOf`) and,
+ * if it's hidden from the public, the viewer is its author or a chef and up.
+ */
+export function canSeeRecipe(
+  viewer: Actor | null,
+  recipe: {
+    isPublic: boolean;
+    author: { id: string; isPrivate: boolean; level: number };
+  },
+) {
+  return (
+    canSeeContentOf(viewer, recipe.author) &&
+    (recipe.isPublic ||
+      viewer?.id === recipe.author.id ||
+      canSeeHiddenRecipes(viewer))
+  );
+}
+
 // ──────────────────────────────── Labels ────────────────────────────────
 
 /** How long after creating a label its creator can still delete it. */

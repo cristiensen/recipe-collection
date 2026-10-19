@@ -1,4 +1,4 @@
-import { Clock, Pencil, Users } from "lucide-react";
+import { Clock, EyeOff, Pencil, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -8,6 +8,7 @@ import { LikeButton } from "@/components/like-button";
 import { LoginLink } from "@/components/login-link";
 import { PhotoGallery } from "@/components/photo-gallery";
 import { PrivateBadge } from "@/components/private-badge";
+import { RecipeVisibilitySwitch } from "@/components/recipe-visibility-switch";
 import { ReviewForm } from "@/components/review-form";
 import { ReviewModeration } from "@/components/review-moderation";
 import { Stars } from "@/components/stars";
@@ -33,7 +34,7 @@ import { labelNames } from "@/lib/labels";
 import {
   canBanUser,
   canModerateReview,
-  canSeeContentOf,
+  canSeeRecipe,
   hasPrivateProfile,
   READ_ONLY_MESSAGE,
 } from "@/lib/privileges";
@@ -50,12 +51,23 @@ function authorOf(recipe: RecipeDetail) {
   };
 }
 
+/** Whether `viewer` may see the recipe at all (else it's "not found"). */
+function visibleTo(
+  viewer: Parameters<typeof canSeeRecipe>[0],
+  recipe: RecipeDetail,
+) {
+  return canSeeRecipe(viewer, {
+    isPublic: recipe.isPublic,
+    author: authorOf(recipe),
+  });
+}
+
 export async function generateMetadata(
   props: PageProps<"/recipes/[id]">,
 ): Promise<Metadata> {
   const { id } = await props.params;
   const [recipe, viewer] = await Promise.all([getRecipe(id), getCurrentUser()]);
-  if (!recipe || !canSeeContentOf(viewer, authorOf(recipe))) {
+  if (!recipe || !visibleTo(viewer, recipe)) {
     return { title: "Recipe not found" };
   }
 
@@ -89,8 +101,9 @@ export default async function RecipePage(props: PageProps<"/recipes/[id]">) {
     getCurrentUser(),
     getLabels(),
   ]);
-  // Private authors' recipes are "not found" for everyone but them and staff
-  if (!recipe || !canSeeContentOf(user, authorOf(recipe))) notFound();
+  // Private authors' recipes are "not found" for everyone but them and staff;
+  // hidden recipes for everyone but their author and chefs and up
+  if (!recipe || !visibleTo(user, recipe)) notFound();
   const authorPrivate = hasPrivateProfile(authorOf(recipe));
 
   const { rating, likes, viewerReview } = await getRecipeStats(
@@ -102,6 +115,24 @@ export default async function RecipePage(props: PageProps<"/recipes/[id]">) {
   return (
     <article className="mx-auto flex w-full max-w-4xl flex-col gap-8">
       <ViewBeacon recipeId={recipe.id} />
+      {!recipe.isPublic && (
+        <aside
+          aria-label="Visibility"
+          data-testid="not-public-notice"
+          className="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm"
+        >
+          <EyeOff
+            aria-hidden
+            className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400"
+          />
+          <p>
+            <span className="font-medium">This recipe is not public.</span>{" "}
+            <span className="text-muted-foreground">
+              Only its author and chefs, moderators and admins can see it.
+            </span>
+          </p>
+        </aside>
+      )}
       <MediaGallery recipe={recipe} />
 
       <header className="flex flex-col gap-4">
@@ -122,7 +153,14 @@ export default async function RecipePage(props: PageProps<"/recipes/[id]">) {
             </p>
           </div>
           {isAuthor && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <RecipeVisibilitySwitch
+                key={String(recipe.isPublic)}
+                recipeId={recipe.id}
+                title={recipe.title}
+                isPublic={recipe.isPublic}
+                className="mr-2"
+              />
               <Button asChild variant="outline" size="sm">
                 <Link href={`/recipes/${recipe.id}/edit`}>
                   <Pencil aria-hidden /> Edit
