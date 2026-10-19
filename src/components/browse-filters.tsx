@@ -1,8 +1,9 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useOptimistic, useState, useTransition } from "react";
+import { CreateLabelForm } from "@/components/create-label-form";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -17,8 +18,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import type { Label } from "@/generated/prisma/enums";
-import { LABELS, MAX_VISIBLE_LABELS, visibleLabelChips } from "@/lib/labels";
+import {
+  type LabelOption,
+  MAX_TOTAL_LABELS,
+  MAX_VISIBLE_LABELS,
+  visibleLabelChips,
+} from "@/lib/labels";
 import {
   browseHref,
   type FeedFilters,
@@ -33,7 +38,7 @@ import {
  * Label, cooking-time and minimum-rating filters plus the sort order, kept
  * in the URL (US-3.2) alongside the header's search. Up to
  * MAX_VISIBLE_LABELS labels show as chips; the rest are in a searchable
- * "See all filters" dropdown.
+ * "See all filters" dropdown. Chefs and up can add labels here too.
  */
 type Selection = FeedFilters & { sort: SortKey };
 
@@ -43,7 +48,12 @@ export function BrowseFilters({
   maxTime,
   minRating,
   sort,
-}: Selection) {
+  allLabels,
+  canCreateLabels,
+}: Selection & {
+  allLabels: readonly LabelOption[];
+  canCreateLabels: boolean;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   // Shows the new selection immediately; settles on the URL's filters once
@@ -57,6 +67,7 @@ export function BrowseFilters({
     sort,
   });
   const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   function apply(next: Selection) {
     startTransition(() => {
@@ -65,15 +76,19 @@ export function BrowseFilters({
     });
   }
 
-  function toggleLabel(label: Label) {
+  function toggleLabel(label: string) {
     const selected = filters.labels.includes(label)
       ? filters.labels.filter((l) => l !== label)
       : [...filters.labels, label];
     apply({ ...filters, labels: selected });
   }
 
-  const chips = visibleLabelChips(LABELS, filters.labels, MAX_VISIBLE_LABELS);
-  const hasMore = LABELS.length > MAX_VISIBLE_LABELS;
+  const chips = visibleLabelChips(
+    allLabels,
+    filters.labels,
+    MAX_VISIBLE_LABELS,
+  );
+  const hasMore = allLabels.length > MAX_VISIBLE_LABELS;
   const active = hasActiveFilters(filters);
 
   return (
@@ -87,13 +102,13 @@ export function BrowseFilters({
         <div className="flex flex-wrap items-center gap-2">
           {chips.map((l) => (
             <label
-              key={l.value}
+              key={l.slug}
               className="cursor-pointer rounded-full border px-3 py-1 text-sm transition-colors has-checked:border-primary has-checked:bg-primary has-checked:text-primary-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring/50"
             >
               <input
                 type="checkbox"
-                checked={filters.labels.includes(l.value)}
-                onChange={() => toggleLabel(l.value)}
+                checked={filters.labels.includes(l.slug)}
+                onChange={() => toggleLabel(l.slug)}
                 className="sr-only"
               />
               {l.name}
@@ -122,13 +137,13 @@ export function BrowseFilters({
                   <CommandList label="All labels">
                     <CommandEmpty>No labels found.</CommandEmpty>
                     <CommandGroup>
-                      {LABELS.map((l) => {
-                        const checked = filters.labels.includes(l.value);
+                      {allLabels.map((l) => {
+                        const checked = filters.labels.includes(l.slug);
                         return (
                           <CommandItem
-                            key={l.value}
+                            key={l.slug}
                             value={l.name}
-                            onSelect={() => toggleLabel(l.value)}
+                            onSelect={() => toggleLabel(l.slug)}
                             data-checked={checked}
                             aria-checked={checked}
                           >
@@ -139,6 +154,29 @@ export function BrowseFilters({
                     </CommandGroup>
                   </CommandList>
                 </Command>
+              </PopoverContent>
+            </Popover>
+          )}
+
+          {canCreateLabels && allLabels.length < MAX_TOTAL_LABELS && (
+            <Popover open={creating} onOpenChange={setCreating}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-full"
+                >
+                  <Plus aria-hidden />
+                  New label
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-80">
+                <CreateLabelForm
+                  id="filters-new-label"
+                  autoFocus
+                  onCreated={() => setCreating(false)}
+                />
               </PopoverContent>
             </Popover>
           )}

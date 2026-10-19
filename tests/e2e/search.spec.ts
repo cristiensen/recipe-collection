@@ -10,8 +10,8 @@ const SALAD = `E2E ${word} salad`;
 
 test.beforeAll(async () => {
   await createUser(email, "Search Chef", 2, "password-123");
-  await insertRecipe(email, SOUP, { labels: ["VEGAN"] });
-  await insertRecipe(email, SALAD, { labels: ["SPICY"] });
+  await insertRecipe(email, SOUP, { labels: ["vegan"] });
+  await insertRecipe(email, SALAD, { labels: ["spicy"] });
 });
 test.afterAll(() => deleteUsers(`%-${run}@e2e.test`));
 

@@ -29,6 +29,15 @@ function childRows(d: RecipeData) {
   };
 }
 
+/** An error if a chosen label was deleted while the form was open. */
+async function missingLabelError(slugs: string[]) {
+  if (slugs.length === 0) return null;
+  const found = await prisma.label.count({ where: { slug: { in: slugs } } });
+  return found === slugs.length
+    ? null
+    : "One of these labels was just deleted. Please check your labels.";
+}
+
 function scalarFields(d: RecipeData) {
   return {
     title: d.title,
@@ -64,8 +73,10 @@ export async function createRecipe(
   const parsed = recipeSchema.safeParse(input);
   if (!parsed.success)
     return { ok: false, errors: toFieldErrors(parsed.error) };
-  const tooMany = labelCountError(parsed.data.labels.length);
-  if (tooMany) return { ok: false, errors: { labels: tooMany } };
+  const labelError =
+    labelCountError(parsed.data.labels.length) ??
+    (await missingLabelError(parsed.data.labels));
+  if (labelError) return { ok: false, errors: { labels: labelError } };
 
   const rows = childRows(parsed.data);
   let id: string;
@@ -127,11 +138,10 @@ export async function updateRecipe(
   if (!parsed.success)
     return { ok: false, errors: toFieldErrors(parsed.error) };
   // Older recipes may keep more labels than the limit, but not add more
-  const tooMany = labelCountError(
-    parsed.data.labels.length,
-    existing.labels.length,
-  );
-  if (tooMany) return { ok: false, errors: { labels: tooMany } };
+  const labelError =
+    labelCountError(parsed.data.labels.length, existing.labels.length) ??
+    (await missingLabelError(parsed.data.labels));
+  if (labelError) return { ok: false, errors: { labels: labelError } };
 
   const rows = childRows(parsed.data);
   try {

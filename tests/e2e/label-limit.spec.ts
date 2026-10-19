@@ -4,14 +4,14 @@ import { createUser, deleteUsers, insertRecipe } from "./db";
 const run = Date.now();
 const chef = { email: `labelchef-${run}@e2e.test`, password: "password-123" };
 const ALL_LABELS = [
-  "VEGAN",
-  "VEGETARIAN",
-  "GLUTEN_FREE",
-  "DAIRY_FREE",
-  "SPICY",
-  "DESSERT",
-  "BREAKFAST",
-  "QUICK",
+  "vegan",
+  "vegetarian",
+  "gluten-free",
+  "dairy-free",
+  "spicy",
+  "dessert",
+  "breakfast",
+  "quick",
 ];
 let olderRecipe = "";
 

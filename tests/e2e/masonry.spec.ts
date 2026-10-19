@@ -4,12 +4,12 @@ import { createUser, deleteUsers, insertRecipe } from "./db";
 const run = Date.now();
 const chef = `masonry-${run}@e2e.test`;
 const LABELS = [
-  "VEGAN",
-  "VEGETARIAN",
-  "GLUTEN_FREE",
-  "DAIRY_FREE",
-  "SPICY",
-  "DESSERT",
+  "vegan",
+  "vegetarian",
+  "gluten-free",
+  "dairy-free",
+  "spicy",
+  "dessert",
 ];
 const titles: string[] = [];
 

@@ -7,9 +7,11 @@ export const metadata: Metadata = {
     "How Recipe Collection handles your data, and the rules for what you post.",
 };
 
-// TODO: replace with a real address before publishing
+// TODO: replace these placeholders before publishing
 const CONTACT_EMAIL = "[contact email]";
-const LAST_UPDATED = "October 18, 2026";
+const OPERATOR = "[your name or organisation]";
+const DATABASE_HOST = "[database provider and region]";
+const LAST_UPDATED = "October 19, 2026";
 
 function Section({
   id,
@@ -60,6 +62,15 @@ export default function PolicyPage() {
       <div id="privacy" className="flex scroll-mt-20 flex-col gap-6">
         <h2 className="text-2xl font-semibold tracking-tight">Privacy</h2>
 
+        <Section id="who-we-are" title="Who we are">
+          <p>
+            Recipe Collection is run by {OPERATOR}, who is responsible (the
+            &ldquo;controller&rdquo;) for your personal data under the EU
+            General Data Protection Regulation (GDPR). You can reach us at{" "}
+            <span className="font-medium">{CONTACT_EMAIL}</span>.
+          </p>
+        </Section>
+
         <Section id="data-we-keep" title="What we keep">
           <p>
             You can browse without an account. When you create one, we store:
@@ -78,6 +89,46 @@ export default function PolicyPage() {
             <li>
               <strong>Your settings:</strong> your theme (light or dark) and
               whether your profile is private.
+            </li>
+          </List>
+        </Section>
+
+        <Section id="why" title="Why we use it">
+          <List>
+            <li>
+              <strong>To run your account and show what you post:</strong>{" "}
+              account details, posts and settings are needed to provide the
+              service you signed up for (performance of a contract).
+            </li>
+            <li>
+              <strong>To keep the site working and safe:</strong> sign-in
+              cookies, view counting and moderation are based on our legitimate
+              interest in running a reliable, friendly site.
+            </li>
+          </List>
+          <p>
+            We don&apos;t use your data for advertising or profiling, and we
+            don&apos;t make automated decisions about you. You need an email
+            address and password to create an account; everything else you post
+            is up to you.
+          </p>
+        </Section>
+
+        <Section id="retention" title="How long we keep it">
+          <List>
+            <li>
+              Account details, posts and settings are kept for as long as you
+              have an account. When you or an admin delete it, they are removed
+              straight away; copies in our providers&apos; backups expire
+              shortly after.
+            </li>
+            <li>
+              Daily view counts are deleted after a week. The all-time total per
+              recipe isn&apos;t linked to anyone.
+            </li>
+            <li>
+              Cookies expire as listed below, or when you sign out (sign-in
+              cookie).
             </li>
           </List>
         </Section>
@@ -125,28 +176,47 @@ export default function PolicyPage() {
         <Section id="services" title="Services we use">
           <p>
             The site is hosted on Vercel, which also stores uploaded photos and
-            videos. Account data and posts are kept in a hosted database. These
-            providers process data only to run the site. We don&apos;t sell or
-            share your data with anyone else.
+            videos. Account data and posts are kept in a database hosted by{" "}
+            {DATABASE_HOST}. These providers process data only on our behalf, to
+            run the site. We don&apos;t sell or share your data with anyone
+            else.
+          </p>
+          <p>
+            Vercel is based in the United States, so some data may be processed
+            outside the European Economic Area. Those transfers are covered by
+            the EU&ndash;US Data Privacy Framework or the European
+            Commission&apos;s Standard Contractual Clauses.
           </p>
         </Section>
 
-        <Section id="your-choices" title="Your choices">
+        <Section id="your-rights" title="Your rights">
+          <p>Under the GDPR you have the right to:</p>
           <List>
             <li>
-              You can change your display name and password, and (as a chef)
-              make your profile private, from the Settings tab on your profile.
+              <strong>Access</strong> the data we hold about you and get a copy
+              of it in a portable format.
             </li>
             <li>
-              You can delete your account at any time from the same place. This
-              permanently removes your account along with your recipes, uploads,
-              reviews, likes and votes.
+              <strong>Correct</strong> it. You can change your display name and
+              password, and (as a chef) make your profile private, from the
+              Settings tab on your profile.
             </li>
             <li>
-              For any other request about your data, contact us at{" "}
-              <span className="font-medium">{CONTACT_EMAIL}</span>.
+              <strong>Delete</strong> it. You can delete your account at any
+              time from the same place. This permanently removes your account
+              along with your recipes, uploads, reviews, likes and votes.
+            </li>
+            <li>
+              <strong>Restrict or object</strong> to how we use it, where we
+              rely on legitimate interest.
             </li>
           </List>
+          <p>
+            For anything you can&apos;t do from Settings, email us at{" "}
+            <span className="font-medium">{CONTACT_EMAIL}</span>. We&apos;ll
+            reply within one month. If you&apos;re unhappy with how we handle
+            your data, you can complain to your local data protection authority.
+          </p>
         </Section>
       </div>
 

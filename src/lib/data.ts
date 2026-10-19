@@ -1,11 +1,17 @@
 import "server-only";
 import { cache } from "react";
 import { Prisma } from "@/generated/prisma/client";
-import type { Label, VoteType } from "@/generated/prisma/enums";
-import { cachedRecipeData } from "@/lib/cache";
-import { labelsMatching } from "@/lib/labels";
+import type { VoteType } from "@/generated/prisma/enums";
+import { cachedLabels, cachedRecipeData } from "@/lib/cache";
+import type { LabelOption } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
-import { type Actor, hasPrivateProfile } from "@/lib/privileges";
+import {
+  type Actor,
+  canDeleteAnyLabel,
+  canDeleteLabel,
+  hasPrivateProfile,
+  LABEL_DELETE_WINDOW_MS,
+} from "@/lib/privileges";
 import {
   type BrowseFilters,
   compareReviews,
@@ -26,7 +32,8 @@ export type RecipeCardData = {
   authorName: string;
   coverUrl: string | null;
   cookingMinutes: number;
-  labels: Label[];
+  /** Label names. */
+  labels: string[];
   averageRating: number | null;
   ratingCount: number;
   likeCount: number;
@@ -78,20 +85,16 @@ function feedQuery(
   // or the name of one of the recipe's labels
   for (const word of searchWords(filters.query)) {
     const pattern = `%${word.replace(/[\\%_]/g, "\\$&")}%`;
-    const labels = labelsMatching(word);
-    const byLabel =
-      labels.length > 0
-        ? Prisma.sql`OR r.labels && ${labels}::"Label"[]`
-        : Prisma.empty;
     conditions.push(Prisma.sql`(r.title ILIKE ${pattern}
       OR r.description ILIKE ${pattern}
       OR EXISTS (SELECT 1 FROM "Ingredient" g
         WHERE g."recipeId" = r.id AND g.name ILIKE ${pattern})
-      ${byLabel})`);
+      OR EXISTS (SELECT 1 FROM "Label" lb
+        WHERE lb.slug = ANY(r.labels) AND lb.name ILIKE ${pattern}))`);
   }
   // US-3.2: a recipe must have *all* selected labels
   if (filters.labels.length > 0) {
-    conditions.push(Prisma.sql`r.labels @> ${filters.labels}::"Label"[]`);
+    conditions.push(Prisma.sql`r.labels @> ${filters.labels}::text[]`);
   }
   if (filters.maxTime) {
     conditions.push(Prisma.sql`r."cookingMinutes" <= ${filters.maxTime}`);
@@ -144,7 +147,9 @@ async function cardLists(
   if (lists.length === 0) return result;
   const rows = await prisma.$queryRaw<CardRow[]>`
     SELECT o.list, o.total::int AS total,
-      r.id, r.title, r."cookingMinutes", r.labels::text[] AS labels,
+      r.id, r.title, r."cookingMinutes",
+      ARRAY(SELECT lb.name FROM unnest(r.labels) WITH ORDINALITY u(slug, n)
+        JOIN "Label" lb ON lb.slug = u.slug ORDER BY u.n) AS labels,
       r."authorId", a.name AS "authorName",
       a."isPrivate" AS "authorIsPrivate", a."privilegeLevel" AS "authorLevel",
       (SELECT i.url FROM "RecipeImage" i WHERE i."recipeId" = r.id
@@ -179,6 +184,62 @@ async function cardLists(
     });
   }
   return result;
+}
+
+// ──────────────────────────────── Labels ────────────────────────────────
+
+/** Every label, oldest first (so the built-in ones come first). */
+export const getLabels = cache(
+  (): Promise<LabelOption[]> =>
+    cachedLabels(() =>
+      prisma.label.findMany({
+        orderBy: [{ createdAt: "asc" }, { slug: "asc" }],
+        select: { slug: true, name: true },
+      }),
+    ),
+);
+
+export type ManagedLabel = LabelOption & {
+  /** null for built-in labels (or a deleted creator). */
+  creatorName: string | null;
+  recipeCount: number;
+  canDelete: boolean;
+  /** Whole minutes left to delete it, while only the creator's window allows it. */
+  minutesLeft: number | null;
+};
+
+/**
+ * The labels shown in Settings: all of them for admins (who can delete any),
+ * otherwise the ones the viewer created, newest first.
+ */
+export async function getManagedLabels(viewer: Actor): Promise<ManagedLabel[]> {
+  const all = canDeleteAnyLabel(viewer);
+  const rows = await prisma.$queryRaw<
+    (LabelOption & {
+      createdById: string | null;
+      createdAt: Date;
+      creatorName: string | null;
+      recipeCount: number;
+    })[]
+  >`
+    SELECT l.slug, l.name, l."createdById", l."createdAt",
+      u.name AS "creatorName",
+      (SELECT COUNT(*)::int FROM "Recipe" r
+        WHERE r.labels @> ARRAY[l.slug]) AS "recipeCount"
+    FROM "Label" l
+    LEFT JOIN "User" u ON u.id = l."createdById"
+    ${all ? Prisma.empty : Prisma.sql`WHERE l."createdById" = ${viewer.id}`}
+    ORDER BY l."createdAt" DESC, l.slug`;
+  const now = new Date();
+  return rows.map(({ createdById, createdAt, ...label }) => {
+    const canDelete = canDeleteLabel(viewer, { createdById, createdAt }, now);
+    const msLeft = createdAt.getTime() + LABEL_DELETE_WINDOW_MS - now.getTime();
+    return {
+      ...label,
+      canDelete,
+      minutesLeft: canDelete && !all ? Math.ceil(msLeft / 60_000) : null,
+    };
+  });
 }
 
 // ────────────────────────────── Browse page ──────────────────────────────

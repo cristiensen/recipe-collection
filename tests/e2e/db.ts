@@ -62,6 +62,7 @@ export function insertRecipe(
   media: {
     imageUrls?: string[];
     videoUrl?: string;
+    /** Label slugs. */
     labels?: string[];
     cookingMinutes?: number;
   } = {},
@@ -70,7 +71,7 @@ export function insertRecipe(
     const id = randomUUID();
     await db.query(
       `INSERT INTO "Recipe" (id, title, description, "cookingMinutes", labels, "videoUrl", "authorId", "updatedAt")
-       SELECT $1, $2, 'Test recipe', $6, $5::"Label"[], $4, id, now() FROM "User" WHERE email = $3`,
+       SELECT $1, $2, 'Test recipe', $6, $5::text[], $4, id, now() FROM "User" WHERE email = $3`,
       [
         id,
         title,
@@ -156,4 +157,43 @@ export function addRecipeViews(recipeId: string, count: number, daysAgo = 0) {
       [recipeId, count, daysAgo],
     ),
   );
+}
+
+/** Deletes labels by slug (deleting their creator keeps them). */
+export function deleteLabels(slugs: string[]) {
+  return withDb(async (db) => {
+    await db.query(
+      `UPDATE "Recipe" SET labels = array_remove(labels, s)
+       FROM unnest($1::text[]) s WHERE labels @> ARRAY[s]`,
+      [slugs],
+    );
+    await db.query(`DELETE FROM "Label" WHERE slug = ANY($1)`, [slugs]);
+  });
+}
+
+/** Backdates a label, e.g. past the window in which its creator can delete it. */
+export function setLabelCreatedAt(slug: string, minutesAgo: number) {
+  return withDb((db) =>
+    db.query(
+      `UPDATE "Label" SET "createdAt" = (now() AT TIME ZONE 'UTC') - make_interval(mins => $2::int)
+       WHERE slug = $1`,
+      [slug, minutesAgo],
+    ),
+  );
+}
+
+/** Adds labels until there are `total`; returns the slugs it added. */
+export function fillLabels(total: number, prefix: string) {
+  return withDb(async (db) => {
+    const { rows } = await db.query(`SELECT COUNT(*)::int AS n FROM "Label"`);
+    const slugs = Array.from(
+      { length: Math.max(0, total - rows[0].n) },
+      (_, i) => `${prefix}-${i}`,
+    );
+    await db.query(
+      `INSERT INTO "Label" (slug, name) SELECT s, s FROM unnest($1::text[]) s`,
+      [slugs],
+    );
+    return slugs;
+  });
 }

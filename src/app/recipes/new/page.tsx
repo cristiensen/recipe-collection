@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { RecipeForm } from "@/components/recipe-form/recipe-form";
 import { Button } from "@/components/ui/button";
+import { getLabels } from "@/lib/data";
 import { canCreateRecipe, READ_ONLY_MESSAGE } from "@/lib/privileges";
 import { requireUser } from "@/lib/session";
 import { storageMode } from "@/lib/storage";
@@ -36,7 +37,7 @@ export default async function NewRecipePage() {
       <h1 className="mb-6 text-2xl font-bold tracking-tight sm:text-3xl">
         Share a recipe
       </h1>
-      <RecipeForm storage={storageMode()} />
+      <RecipeForm storage={storageMode()} allLabels={await getLabels()} />
     </div>
   );
 }

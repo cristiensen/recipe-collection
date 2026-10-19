@@ -24,7 +24,7 @@ const valid: RecipeInput = {
   steps: [{ text: "Bake." }],
   cookingMinutes: 90,
   servings: 8,
-  labels: ["DESSERT", "VEGETARIAN"],
+  labels: ["dessert", "vegetarian"],
 };
 
 function errorsFor(input: unknown) {
@@ -103,8 +103,11 @@ describe("recipe validation", () => {
     expect(errs.description).toBe("Description is required");
   });
 
-  it("rejects unknown labels", () => {
-    expect(errorsFor({ ...valid, labels: ["KETO"] })["labels.0"]).toBeDefined();
+  // Whether labels exist is checked by the Server Actions (labels are data)
+  it("rejects duplicate labels", () => {
+    expect(errorsFor({ ...valid, labels: ["vegan", "vegan"] }).labels).toBe(
+      "Duplicate label",
+    );
   });
 });
 

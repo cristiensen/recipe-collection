@@ -34,6 +34,7 @@ model User {
   reviews  Review[]
   votes    ReviewVote[]
   likes    RecipeLike[]
+  labels   Label[]
 }
 
 model Account {
@@ -81,15 +82,20 @@ enum ThemePreference {
 
 // ───────────────────────────────── Recipes ─────────────────────────────────
 
-enum Label {
-  VEGAN
-  VEGETARIAN
-  GLUTEN_FREE
-  DAIRY_FREE
-  SPICY
-  DESSERT
-  BREAKFAST
-  QUICK
+/// A recipe label. The built-in ones (created by the migration) have no
+/// creator; chefs and up can add more.
+model Label {
+  /// Derived from the name ("Gluten-free" → "gluten-free"), so names that
+  /// differ only in case or punctuation can't both exist. Recipes store it.
+  slug        String   @id
+  name        String
+  /// null for built-in labels and labels whose creator was deleted.
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([createdById])
 }
 
 model Recipe {
@@ -99,7 +105,9 @@ model Recipe {
   /// BR-2: CHECK ("cookingMinutes" > 0) is added in the migration SQL.
   cookingMinutes Int
   servings       Int?
-  labels         Label[]
+  /// `Label.slug`s. Not a foreign key, so deleting a label also removes it
+  /// from these (see `deleteLabel`).
+  labels         String[]
   videoUrl       String?
   /// All-time views. Bumped with raw SQL so `updatedAt` stays the last edit.
   viewCount      Int      @default(0)

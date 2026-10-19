@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
-  LABELS,
   labelCountError,
-  labelFromSlug,
   labelLimit,
-  labelsMatching,
+  labelNames,
   MAX_LABELS,
   MAX_VISIBLE_LABELS,
+  slugify,
   visibleLabelChips,
 } from "@/lib/labels";
 import {
@@ -19,25 +18,39 @@ import {
   parseBrowseFilters,
   SORT_OPTIONS,
 } from "@/lib/rules";
+import { labelNameSchema } from "@/lib/validation";
+
+/** The built-in labels, in their order. */
+const LABELS = [
+  { slug: "vegan", name: "Vegan" },
+  { slug: "vegetarian", name: "Vegetarian" },
+  { slug: "gluten-free", name: "Gluten-free" },
+  { slug: "dairy-free", name: "Dairy-free" },
+  { slug: "spicy", name: "Spicy" },
+  { slug: "dessert", name: "Dessert" },
+  { slug: "breakfast", name: "Breakfast" },
+  { slug: "quick", name: "Quick" },
+];
+const isLabel = (slug: string) => LABELS.some((l) => l.slug === slug);
 
 describe("visibleLabelChips", () => {
   it("shows at most 5 labels when none of the others are selected", () => {
     const chips = visibleLabelChips(LABELS, [], MAX_VISIBLE_LABELS);
     expect(chips).toHaveLength(5);
-    expect(chips.map((l) => l.value)).toEqual(
-      LABELS.slice(0, 5).map((l) => l.value),
+    expect(chips.map((l) => l.slug)).toEqual(
+      LABELS.slice(0, 5).map((l) => l.slug),
     );
   });
 
   it("keeps selected labels from the dropdown visible as extra chips", () => {
-    const chips = visibleLabelChips(LABELS, ["BREAKFAST"], MAX_VISIBLE_LABELS);
+    const chips = visibleLabelChips(LABELS, ["breakfast"], MAX_VISIBLE_LABELS);
     expect(chips).toHaveLength(6);
-    expect(chips.at(-1)?.value).toBe("BREAKFAST");
+    expect(chips.at(-1)?.slug).toBe("breakfast");
   });
 
   it("doesn't duplicate selected labels already among the first 5", () => {
     expect(
-      visibleLabelChips(LABELS, ["VEGAN"], MAX_VISIBLE_LABELS),
+      visibleLabelChips(LABELS, ["vegan"], MAX_VISIBLE_LABELS),
     ).toHaveLength(5);
   });
 });
@@ -46,7 +59,7 @@ describe("browseHref", () => {
   it("builds a shareable URL", () => {
     expect(
       browseHref({
-        labels: ["VEGAN", "DAIRY_FREE"],
+        labels: ["vegan", "dairy-free"],
         maxTime: 30,
         minRating: null,
       }),
@@ -104,14 +117,14 @@ describe("minimum rating filter", () => {
     expect(browseHref({ labels: [], maxTime: null, minRating: 3.5 })).toBe(
       "/?minRating=3.5",
     );
-    expect(
-      parseBrowseFilters({ minRating: "4.5" }, labelFromSlug).minRating,
-    ).toBe(4.5);
+    expect(parseBrowseFilters({ minRating: "4.5" }, isLabel).minRating).toBe(
+      4.5,
+    );
   });
   it("only accepts 1 to 5 in steps of 0.5", () => {
     for (const bad of ["0", "0.5", "3.7", "5.5", "abc", "-1"]) {
       expect(
-        parseBrowseFilters({ minRating: bad }, labelFromSlug).minRating,
+        parseBrowseFilters({ minRating: bad }, isLabel).minRating,
       ).toBeNull();
     }
     expect(MIN_RATING_OPTIONS).toEqual([1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]);
@@ -128,7 +141,7 @@ describe("minimum rating filter", () => {
 
 describe("sort order", () => {
   it("defaults to newest first and keeps it out of the URL", () => {
-    expect(parseBrowseFilters({}, labelFromSlug).sort).toBe("newest");
+    expect(parseBrowseFilters({}, isLabel).sort).toBe("newest");
     expect(
       browseHref({
         labels: [],
@@ -140,9 +153,7 @@ describe("sort order", () => {
   });
   it("reads and writes the other orders", () => {
     for (const { value } of SORT_OPTIONS) {
-      expect(parseBrowseFilters({ sort: value }, labelFromSlug).sort).toBe(
-        value,
-      );
+      expect(parseBrowseFilters({ sort: value }, isLabel).sort).toBe(value);
     }
     expect(
       browseHref({
@@ -154,12 +165,10 @@ describe("sort order", () => {
     ).toBe("/?sort=rating-desc");
   });
   it("falls back to newest for unknown values", () => {
-    expect(parseBrowseFilters({ sort: "price" }, labelFromSlug).sort).toBe(
+    expect(parseBrowseFilters({ sort: "price" }, isLabel).sort).toBe("newest");
+    expect(parseBrowseFilters({ sort: "1; DROP TABLE" }, isLabel).sort).toBe(
       "newest",
     );
-    expect(
-      parseBrowseFilters({ sort: "1; DROP TABLE" }, labelFromSlug).sort,
-    ).toBe("newest");
   });
 });
 
@@ -173,14 +182,14 @@ describe("search", () => {
         minRating: null,
       }),
     ).toBe("/?q=tomato+soup");
-    expect(
-      parseBrowseFilters({ q: " pasta  bake " }, labelFromSlug).query,
-    ).toBe("pasta bake");
-    expect(parseBrowseFilters({}, labelFromSlug).query).toBe("");
+    expect(parseBrowseFilters({ q: " pasta  bake " }, isLabel).query).toBe(
+      "pasta bake",
+    );
+    expect(parseBrowseFilters({}, isLabel).query).toBe("");
   });
   it("caps very long searches", () => {
     expect(
-      parseBrowseFilters({ q: "a".repeat(500) }, labelFromSlug).query,
+      parseBrowseFilters({ q: "a".repeat(500) }, isLabel).query,
     ).toHaveLength(MAX_QUERY_LENGTH);
   });
   it("doesn't count as a filter", () => {
@@ -195,11 +204,29 @@ describe("search", () => {
   });
 });
 
-describe("labelsMatching", () => {
-  it("finds labels whose name contains the word, ignoring case", () => {
-    expect(labelsMatching("VEG")).toEqual(["VEGAN", "VEGETARIAN"]);
-    expect(labelsMatching("free")).toEqual(["GLUTEN_FREE", "DAIRY_FREE"]);
-    expect(labelsMatching("gluten-free")).toEqual(["GLUTEN_FREE"]);
-    expect(labelsMatching("pasta")).toEqual([]);
+describe("new labels", () => {
+  it("get a slug from their name", () => {
+    expect(slugify("Gluten-free")).toBe("gluten-free");
+    expect(slugify("  Low Carb!! ")).toBe("low-carb");
+    expect(slugify("Crème brûlée")).toBe("creme-brulee");
+    expect(slugify("!!!")).toBe("");
+  });
+
+  it("names are single-spaced, 1 to 30 characters, with a letter or digit", () => {
+    expect(labelNameSchema.parse("  Low   carb ")).toEqual({
+      name: "Low carb",
+      slug: "low-carb",
+    });
+    expect(labelNameSchema.safeParse("   ").success).toBe(false);
+    expect(labelNameSchema.safeParse("a".repeat(31)).success).toBe(false);
+    expect(labelNameSchema.safeParse("a".repeat(30)).success).toBe(true);
+    expect(labelNameSchema.safeParse("🌶️").success).toBe(false);
+  });
+
+  it("are shown by name, skipping deleted ones", () => {
+    expect(labelNames(["spicy", "gone", "vegan"], LABELS)).toEqual([
+      "Spicy",
+      "Vegan",
+    ]);
   });
 });

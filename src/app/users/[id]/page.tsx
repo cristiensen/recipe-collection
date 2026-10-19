@@ -3,15 +3,25 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AccountSettings } from "@/components/account-settings";
+import { LabelSettings } from "@/components/label-settings";
 import { PrivateBadge } from "@/components/private-badge";
 import { RecipeFeed } from "@/components/recipe-feed";
 import { Badge } from "@/components/ui/badge";
-import { getLikedRecipes, getUserProfile, getUserRecipes } from "@/lib/data";
+import {
+  getLabels,
+  getLikedRecipes,
+  getManagedLabels,
+  getUserProfile,
+  getUserRecipes,
+} from "@/lib/data";
 import {
   canChangeDisplayName,
   canChooseProfileVisibility,
+  canCreateLabel,
+  canDeleteAnyLabel,
   canSeeContentOf,
   hasPrivateProfile,
+  LABEL_DELETE_WINDOW_MS,
   levelName,
 } from "@/lib/privileges";
 import { clampShown, MAX_SHOWN, PAGE_SIZE } from "@/lib/rules";
@@ -145,6 +155,7 @@ export default async function ProfilePage(props: PageProps<"/users/[id]">) {
           canRename={canChangeDisplayName(viewer)}
           isPrivate={profile.isPrivate}
           canChooseVisibility={canChooseProfileVisibility(viewer)}
+          labels={<SettingsLabels viewer={viewer} />}
         />
       ) : (
         <ProfileRecipes
@@ -157,6 +168,30 @@ export default async function ProfilePage(props: PageProps<"/users/[id]">) {
         />
       )}
     </div>
+  );
+}
+
+/** Settings → Labels, for those who can create or delete labels. */
+async function SettingsLabels({
+  viewer,
+}: {
+  viewer: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
+}) {
+  const canCreate = canCreateLabel(viewer);
+  const isAdmin = canDeleteAnyLabel(viewer);
+  if (!canCreate && !isAdmin) return null;
+  const [labels, allLabels] = await Promise.all([
+    getManagedLabels(viewer),
+    getLabels(),
+  ]);
+  return (
+    <LabelSettings
+      labels={labels}
+      totalCount={allLabels.length}
+      canCreate={canCreate}
+      isAdmin={isAdmin}
+      windowMinutes={LABEL_DELETE_WINDOW_MS / 60_000}
+    />
   );
 }
 

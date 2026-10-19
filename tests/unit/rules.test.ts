@@ -4,7 +4,6 @@ import {
   formatQuantity,
   formatRatingSummary,
 } from "@/lib/format";
-import { labelFromSlug } from "@/lib/labels";
 import { checkMediaFile, isAllowedMediaUrl } from "@/lib/media";
 import type { Actor } from "@/lib/privileges";
 import {
@@ -121,15 +120,17 @@ describe("US-4.5: review ordering", () => {
 });
 
 describe("browse filters (US-3.2)", () => {
+  const isLabel = (slug: string) => ["vegan", "spicy"].includes(slug);
+
   it("parses labels, time and shown count from the URL", () => {
     expect(
       parseBrowseFilters(
         { labels: "vegan,spicy", maxTime: "30", shown: "24" },
-        labelFromSlug,
+        isLabel,
       ),
     ).toEqual({
       query: "",
-      labels: ["VEGAN", "SPICY"],
+      labels: ["vegan", "spicy"],
       maxTime: 30,
       minRating: null,
       sort: "newest",
@@ -139,22 +140,22 @@ describe("browse filters (US-3.2)", () => {
 
   it("accepts repeated label params and drops unknown/duplicate ones", () => {
     expect(
-      parseBrowseFilters({ labels: ["vegan", "keto", "vegan"] }, labelFromSlug)
+      parseBrowseFilters({ labels: ["vegan", "keto", "vegan"] }, isLabel)
         .labels,
-    ).toEqual(["VEGAN"]);
+    ).toEqual(["vegan"]);
   });
 
   it("ignores invalid time and shown values", () => {
-    expect(
-      parseBrowseFilters({ maxTime: "45", shown: "-3" }, labelFromSlug),
-    ).toEqual({
-      query: "",
-      labels: [],
-      maxTime: null,
-      minRating: null,
-      sort: "newest",
-      shown: 12,
-    });
+    expect(parseBrowseFilters({ maxTime: "45", shown: "-3" }, isLabel)).toEqual(
+      {
+        query: "",
+        labels: [],
+        maxTime: null,
+        minRating: null,
+        sort: "newest",
+        shown: 12,
+      },
+    );
   });
 });
 

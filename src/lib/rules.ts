@@ -1,5 +1,4 @@
-import type { Label, VoteType } from "@/generated/prisma/enums";
-import { labelSlug } from "@/lib/labels";
+import type { VoteType } from "@/generated/prisma/enums";
 import type { Actor } from "@/lib/privileges";
 
 /**
@@ -153,7 +152,8 @@ export function normalizeQuery(value: string | undefined): string {
 export type BrowseFilters = {
   /** Words every result must contain (title, description or ingredients). */
   query: string;
-  labels: Label[];
+  /** Label slugs a recipe must all have. */
+  labels: string[];
   maxTime: number | null;
   /** Only recipes whose average rating is at least this (unrated ones excluded). */
   minRating: number | null;
@@ -181,7 +181,7 @@ export function clampShown(value: unknown): number {
  */
 export function parseBrowseFilters(
   params: SearchParams,
-  labelFromSlug: (slug: string) => Label | undefined,
+  isLabel: (slug: string) => boolean,
 ): BrowseFilters {
   // Accepts `labels=vegan,spicy` and repeated `labels=vegan&labels=spicy`.
   const labels = [
@@ -189,8 +189,8 @@ export function parseBrowseFilters(
       [params.labels ?? []]
         .flat()
         .flatMap((v) => v.split(","))
-        .map((s) => labelFromSlug(s.trim()))
-        .filter((l): l is Label => !!l),
+        .map((s) => s.trim())
+        .filter(isLabel),
     ),
   ];
   const time = Number(first(params.maxTime));
@@ -234,7 +234,7 @@ export function browseHref(
   const query = normalizeQuery(filters.query);
   if (query) params.set("q", query);
   if (filters.labels.length > 0) {
-    params.set("labels", filters.labels.map(labelSlug).join(","));
+    params.set("labels", filters.labels.join(","));
   }
   if (filters.maxTime) params.set("maxTime", String(filters.maxTime));
   if (filters.minRating) params.set("minRating", String(filters.minRating));

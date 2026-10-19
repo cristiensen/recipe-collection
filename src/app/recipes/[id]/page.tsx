@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ViewBeacon } from "@/components/view-beacon";
 import { VoteButtons } from "@/components/vote-buttons";
 import {
+  getLabels,
   getListedReviews,
   getRecipe,
   getRecipeStats,
@@ -28,7 +29,7 @@ import {
   formatQuantity,
   formatRatingSummary,
 } from "@/lib/format";
-import { labelName } from "@/lib/labels";
+import { labelNames } from "@/lib/labels";
 import {
   canBanUser,
   canModerateReview,
@@ -83,7 +84,11 @@ export async function generateMetadata(
 
 export default async function RecipePage(props: PageProps<"/recipes/[id]">) {
   const { id } = await props.params;
-  const [recipe, user] = await Promise.all([getRecipe(id), getCurrentUser()]);
+  const [recipe, user, allLabels] = await Promise.all([
+    getRecipe(id),
+    getCurrentUser(),
+    getLabels(),
+  ]);
   // Private authors' recipes are "not found" for everyone but them and staff
   if (!recipe || !canSeeContentOf(user, authorOf(recipe))) notFound();
   const authorPrivate = hasPrivateProfile(authorOf(recipe));
@@ -139,9 +144,9 @@ export default async function RecipePage(props: PageProps<"/recipes/[id]">) {
               Serves {recipe.servings}
             </Badge>
           )}
-          {recipe.labels.map((l) => (
-            <Badge key={l} variant="outline">
-              {labelName(l)}
+          {labelNames(recipe.labels, allLabels).map((name) => (
+            <Badge key={name} variant="outline">
+              {name}
             </Badge>
           ))}
         </div>

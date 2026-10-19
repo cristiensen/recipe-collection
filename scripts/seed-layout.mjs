@@ -144,14 +144,15 @@ async function seed(db) {
     const createdAt = new Date(Date.now() - (i + 1) * 36e5 * int(5, 30));
     await db.query(
       `INSERT INTO "Recipe" (id, title, description, "cookingMinutes", servings, labels, "authorId", "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, $5, $6::"Label"[], $7, $8, $8)`,
+       VALUES ($1, $2, $3, $4, $5, $6::text[], $7, $8, $8)`,
       [
         id,
         title,
         description,
         TIMES[i],
         rand() < 0.3 ? null : int(1, 12),
-        labels,
+        // Label slugs: GLUTEN_FREE → gluten-free
+        labels.map((l) => l.toLowerCase().replaceAll("_", "-")),
         chefId,
         createdAt,
       ],

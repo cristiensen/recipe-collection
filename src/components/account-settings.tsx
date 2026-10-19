@@ -24,12 +24,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-/** Owner-only settings on their profile: display name, password, delete account. */
+/** Owner-only settings on their profile: display name, visibility, labels, password, delete account. */
 export function AccountSettings({
   name,
   canRename,
   isPrivate,
   canChooseVisibility,
+  labels,
 }: {
   name: string;
   /** False for banned (read-only) accounts. */
@@ -38,6 +39,8 @@ export function AccountSettings({
   isPrivate: boolean;
   /** Chefs and up (not banned) can change it. */
   canChooseVisibility: boolean;
+  /** The Labels section, for chefs and up. */
+  labels?: React.ReactNode;
 }) {
   return (
     <div className="flex max-w-xl flex-col gap-8">
@@ -45,6 +48,7 @@ export function AccountSettings({
       {(canChooseVisibility || isPrivate) && (
         <VisibilityForm isPrivate={isPrivate} canChoose={canChooseVisibility} />
       )}
+      {labels}
       <PasswordForm />
       <DeleteAccount />
     </div>

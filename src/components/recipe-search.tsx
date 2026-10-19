@@ -9,7 +9,6 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { labelFromSlug } from "@/lib/labels";
 import {
   browseHref,
   MAX_QUERY_LENGTH,
@@ -56,9 +55,10 @@ export function RecipeSearch() {
     const leaving = leftFrom.current === pathname;
     if (!onBrowse && !leaving && !query) return;
     if (onBrowse && query === urlQuery) return;
+    // Only the sort is kept, so labels needn't be recognized
     const { sort } = parseBrowseFilters(
       onBrowse ? Object.fromEntries(searchParams) : {},
-      labelFromSlug,
+      () => false,
     );
     const href = browseHref({
       query,

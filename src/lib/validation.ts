@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { LABEL_VALUES } from "@/lib/labels";
+import { MAX_LABEL_NAME_LENGTH, slugify } from "@/lib/labels";
 import { isAllowedMediaUrl, MAX_IMAGES } from "@/lib/media";
 
 /**
@@ -105,8 +105,9 @@ export const recipeSchema = z.object({
     .positive("Servings must be greater than 0")
     .max(100, "Servings must be 100 or fewer")
     .nullable(),
+  // Label slugs; the Server Actions check they exist
   labels: z
-    .array(z.enum(LABEL_VALUES))
+    .array(z.string().max(MAX_LABEL_NAME_LENGTH))
     .refine((l) => new Set(l).size === l.length, "Duplicate label"),
 });
 
@@ -132,6 +133,24 @@ export const reviewSchema = z.object({
 });
 
 export type ReviewData = z.output<typeof reviewSchema>;
+
+// ──────────────────────────────── Labels ────────────────────────────────
+
+/** A new label's name (single-spaced), with the slug it gets. */
+export const labelNameSchema = z
+  .string()
+  .transform((v) => v.replace(/\s+/g, " ").trim())
+  .pipe(
+    z
+      .string()
+      .min(1, "Enter a label name")
+      .max(
+        MAX_LABEL_NAME_LENGTH,
+        `Label must be ${MAX_LABEL_NAME_LENGTH} characters or fewer`,
+      )
+      .refine((v) => slugify(v) !== "", "Use at least one letter or number"),
+  )
+  .transform((name) => ({ name, slug: slugify(name) }));
 
 // ──────────────────────────────── Helpers ────────────────────────────────
 

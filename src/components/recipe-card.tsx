@@ -7,7 +7,6 @@ import { Stars } from "@/components/stars";
 import { Badge } from "@/components/ui/badge";
 import type { RecipeCardData } from "@/lib/data";
 import { formatMinutes, formatRatingSummary } from "@/lib/format";
-import { labelName } from "@/lib/labels";
 import type { Actor } from "@/lib/privileges";
 import { likeMode } from "@/lib/rules";
 import { cn } from "@/lib/utils";
@@ -92,9 +91,9 @@ export function RecipeCard({
             <Clock aria-hidden className="size-3" />
             {formatMinutes(recipe.cookingMinutes)}
           </Badge>
-          {recipe.labels.map((l) => (
-            <Badge key={l} variant="outline">
-              {labelName(l)}
+          {recipe.labels.map((name) => (
+            <Badge key={name} variant="outline">
+              {name}
             </Badge>
           ))}
         </div>

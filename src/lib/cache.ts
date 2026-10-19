@@ -5,6 +5,9 @@ import { revalidateTag, unstable_cache } from "next/cache";
  * can see them. */
 const RECIPES_TAG = "recipes";
 
+/** Tag on the cached list of labels. */
+const LABELS_TAG = "labels";
+
 /** Tag on a cached account (see `getCurrentUser`). */
 export const userTag = (userId: string) => `user:${userId}`;
 
@@ -30,6 +33,16 @@ export function cachedRecipeData<T>(load: () => Promise<T>, key: string[]) {
   // Views change all the time and invalidate nothing, so "hottest" rows can
   // lag by up to this long
   return cached(load, key, { tags: [RECIPES_TAG], revalidate: 300 });
+}
+
+/** Like `cached`, for the list of labels. */
+export function cachedLabels<T>(load: () => Promise<T>) {
+  return cached(load, ["labels"], { tags: [LABELS_TAG], revalidate: 3600 });
+}
+
+/** Call after creating or deleting a label. */
+export function labelsChanged() {
+  revalidateTag(LABELS_TAG, { expire: 0 });
 }
 
 /**

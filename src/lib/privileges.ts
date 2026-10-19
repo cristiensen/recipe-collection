@@ -140,3 +140,36 @@ export function canSeeContentOf(
 export function canChooseProfileVisibility(actor: Actor | null) {
   return canWrite(actor) && actor.level >= LEVEL.CHEF;
 }
+
+// ──────────────────────────────── Labels ────────────────────────────────
+
+/** How long after creating a label its creator can still delete it. */
+export const LABEL_DELETE_WINDOW_MS = 15 * 60 * 1000;
+
+/** Chefs and up can add labels everyone can use. */
+export function canCreateLabel(actor: Actor | null) {
+  return canWrite(actor) && actor.level >= LEVEL.CHEF;
+}
+
+/** Admins can delete any label, including the built-in ones. */
+export function canDeleteAnyLabel(actor: Actor | null) {
+  return canWrite(actor) && actor.level >= LEVEL.ADMIN;
+}
+
+/**
+ * Creators can take back a label shortly after adding it (e.g. a typo);
+ * after that, only admins can delete it.
+ */
+export function canDeleteLabel(
+  actor: Actor | null,
+  label: { createdById: string | null; createdAt: Date },
+  now: Date,
+) {
+  if (canDeleteAnyLabel(actor)) return true;
+  return (
+    canWrite(actor) &&
+    actor.level >= LEVEL.CHEF &&
+    label.createdById === actor.id &&
+    now.getTime() - label.createdAt.getTime() < LABEL_DELETE_WINDOW_MS
+  );
+}

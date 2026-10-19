@@ -4,9 +4,8 @@ import { BrowseFilters } from "@/components/browse-filters";
 import { RecipeFeed } from "@/components/recipe-feed";
 import { RecipeRow } from "@/components/recipe-row";
 import { Button } from "@/components/ui/button";
-import { getBrowseLists } from "@/lib/data";
-import { labelFromSlug } from "@/lib/labels";
-import { canCreateRecipe } from "@/lib/privileges";
+import { getBrowseLists, getLabels } from "@/lib/data";
+import { canCreateLabel, canCreateRecipe } from "@/lib/privileges";
 import {
   browseHref,
   hasActiveFilters,
@@ -18,9 +17,15 @@ import { getCurrentUser } from "@/lib/session";
 import { loginHref } from "@/lib/urls";
 
 export default async function BrowsePage(props: PageProps<"/">) {
-  const filters = parseBrowseFilters(await props.searchParams, labelFromSlug);
+  const [params, allLabels, user] = await Promise.all([
+    props.searchParams,
+    getLabels(),
+    getCurrentUser(),
+  ]);
   // Render as many as were loaded before (`?shown=`), so Back restores the list
-  const user = await getCurrentUser();
+  const filters = parseBrowseFilters(params, (slug) =>
+    allLabels.some((l) => l.slug === slug),
+  );
   const viewer = user
     ? { id: user.id, level: user.level, banned: user.banned }
     : null;
@@ -53,6 +58,8 @@ export default async function BrowsePage(props: PageProps<"/">) {
         maxTime={filters.maxTime}
         minRating={filters.minRating}
         sort={filters.sort}
+        allLabels={allLabels}
+        canCreateLabels={canCreateLabel(user)}
       />
 
       {recipes.length === 0 ? (

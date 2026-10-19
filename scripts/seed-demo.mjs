@@ -1289,14 +1289,15 @@ async function seed(db, photoUrls) {
     const createdAt = new Date(Date.now() - (i * 36 + int(1, 12)) * 36e5);
     await db.query(
       `INSERT INTO "Recipe" (id, title, description, "cookingMinutes", servings, labels, "authorId", "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, $5, $6::"Label"[], $7, $8, $8)`,
+       VALUES ($1, $2, $3, $4, $5, $6::text[], $7, $8, $8)`,
       [
         id,
         recipe.title,
         recipe.description,
         recipe.minutes,
         recipe.servings,
-        recipe.labels,
+        // Label slugs: GLUTEN_FREE → gluten-free
+        recipe.labels.map((l) => l.toLowerCase().replaceAll("_", "-")),
         chefIds[i % chefIds.length],
         createdAt,
       ],

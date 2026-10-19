@@ -16,9 +16,9 @@ test.beforeAll(async () => {
   await createUser(fan, "Love Fan", 1, password);
   await createUser(collector, "Love Collector", 1, password);
   await createUser(nobody, "Love Nobody", 1, password);
-  const veganId = await insertRecipe(chef, vegan, { labels: ["VEGAN"] });
+  const veganId = await insertRecipe(chef, vegan, { labels: ["vegan"] });
   const plainId = await insertRecipe(chef, plain);
-  await insertRecipe(chef, spicy, { labels: ["SPICY"] });
+  await insertRecipe(chef, spicy, { labels: ["spicy"] });
   // Liked in this order, so the plain one is the most recent
   await likeRecipe(veganId, fan);
   await likeRecipe(plainId, fan);

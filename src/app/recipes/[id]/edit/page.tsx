@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { RecipeForm } from "@/components/recipe-form/recipe-form";
-import { getRecipe } from "@/lib/data";
+import { getLabels, getRecipe } from "@/lib/data";
 import { canEditRecipe } from "@/lib/rules";
 import { requireUser } from "@/lib/session";
 import { storageMode } from "@/lib/storage";
@@ -13,7 +13,7 @@ export default async function EditRecipePage(
 ) {
   const { id } = await props.params;
   const user = await requireUser(`/recipes/${id}/edit`);
-  const recipe = await getRecipe(id);
+  const [recipe, allLabels] = await Promise.all([getRecipe(id), getLabels()]);
   if (!recipe) notFound();
   // BR-5: non-authors are sent back to the recipe (the action re-checks too).
   if (!canEditRecipe(user, recipe)) redirect(`/recipes/${id}`);
@@ -26,12 +26,16 @@ export default async function EditRecipePage(
       <RecipeForm
         recipeId={recipe.id}
         storage={storageMode()}
+        allLabels={allLabels}
         initial={{
           title: recipe.title,
           description: recipe.description,
           cookingMinutes: recipe.cookingMinutes,
           servings: recipe.servings,
-          labels: recipe.labels,
+          // A label deleted mid-save could linger; it has no checkbox to untick
+          labels: recipe.labels.filter((s) =>
+            allLabels.some((l) => l.slug === s),
+          ),
           images: recipe.images.map((i) => i.url),
           videoUrl: recipe.videoUrl,
           ingredients: recipe.ingredients.map((i) => ({

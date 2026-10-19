@@ -17,7 +17,7 @@ test.beforeAll(async () => {
   const hottestId = await insertRecipe(chef, hottest);
   await addRecipeViews(hottestId, MANY + 1);
   await addRecipeViews(hottestId, MANY + 1, 6);
-  const warmId = await insertRecipe(chef, warm, { labels: ["DESSERT"] });
+  const warmId = await insertRecipe(chef, warm, { labels: ["dessert"] });
   await addRecipeViews(warmId, MANY + 20, 3);
   // Seven days back is past "this week", however many views it had
   const staleId = await insertRecipe(chef, stale);

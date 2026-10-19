@@ -1,37 +1,35 @@
-import type { Label } from "@/generated/prisma/enums";
+/**
+ * A recipe label (US-2.6). The slug is its key: recipes store it and filter
+ * URLs use it. Labels live in the database: a few built-in ones, plus those
+ * chefs and up create (see `getLabels`).
+ */
+export type LabelOption = { slug: string; name: string };
 
-/** Predefined recipe labels (US-2.6). URL slugs are what appear in filter query strings. */
-export const LABELS: readonly { value: Label; slug: string; name: string }[] = [
-  { value: "VEGAN", slug: "vegan", name: "Vegan" },
-  { value: "VEGETARIAN", slug: "vegetarian", name: "Vegetarian" },
-  { value: "GLUTEN_FREE", slug: "gluten-free", name: "Gluten-free" },
-  { value: "DAIRY_FREE", slug: "dairy-free", name: "Dairy-free" },
-  { value: "SPICY", slug: "spicy", name: "Spicy" },
-  { value: "DESSERT", slug: "dessert", name: "Dessert" },
-  { value: "BREAKFAST", slug: "breakfast", name: "Breakfast" },
-  { value: "QUICK", slug: "quick", name: "Quick" },
-];
+export const MAX_LABEL_NAME_LENGTH = 30;
 
-export const LABEL_VALUES = LABELS.map((l) => l.value) as [Label, ...Label[]];
+/** At most this many labels in total (built-in ones included), so the
+ * filters stay usable. */
+export const MAX_TOTAL_LABELS = 100;
 
-export function labelName(value: Label): string {
-  return LABELS.find((l) => l.value === value)?.name ?? value;
+/**
+ * The slug for a label name: "Gluten Free!" → "gluten-free", "Crème brûlée"
+ * → "creme-brulee". Empty when the name has no letters or digits.
+ */
+export function slugify(name: string): string {
+  return name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
-export function labelFromSlug(slug: string): Label | undefined {
-  return LABELS.find((l) => l.slug === slug)?.value;
-}
-
-/** Labels whose name contains a search word ("veg" → Vegan, Vegetarian). */
-export function labelsMatching(word: string): Label[] {
-  const w = word.toLowerCase();
-  return LABELS.filter((l) => l.name.toLowerCase().includes(w)).map(
-    (l) => l.value,
-  );
-}
-
-export function labelSlug(value: Label): string {
-  return LABELS.find((l) => l.value === value)?.slug ?? value.toLowerCase();
+/** The names of `slugs`, in their order (deleted labels are left out). */
+export function labelNames(
+  slugs: readonly string[],
+  all: readonly LabelOption[],
+): string[] {
+  return slugs.flatMap((s) => all.find((l) => l.slug === s)?.name ?? []);
 }
 
 /** How many label chips the browse filters show before "See all filters". */
@@ -41,12 +39,12 @@ export const MAX_VISIBLE_LABELS = 5;
  * The label chips to show: the first `max`, plus any selected labels beyond
  * that so active filters are never hidden behind the dropdown.
  */
-export function visibleLabelChips<T extends { value: Label }>(
+export function visibleLabelChips<T extends { slug: string }>(
   all: readonly T[],
-  selected: readonly Label[],
+  selected: readonly string[],
   max: number,
 ): T[] {
-  return all.filter((l, i) => i < max || selected.includes(l.value));
+  return all.filter((l, i) => i < max || selected.includes(l.slug));
 }
 
 /** New recipes can have at most this many labels. */

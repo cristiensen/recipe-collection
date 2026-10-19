@@ -9,8 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { Label as RecipeLabel } from "@/generated/prisma/enums";
-import { LABELS, labelCountError, labelLimit } from "@/lib/labels";
+import { type LabelOption, labelCountError, labelLimit } from "@/lib/labels";
 import type { StorageMode } from "@/lib/upload-client";
 import { cn } from "@/lib/utils";
 import {
@@ -38,7 +37,8 @@ export type RecipeFormValues = {
   description: string;
   cookingMinutes: number | null;
   servings: number | null;
-  labels: RecipeLabel[];
+  /** Label slugs. */
+  labels: string[];
   images: string[];
   videoUrl: string | null;
   ingredients: { name: string; quantity: number | null; unit: string | null }[];
@@ -83,10 +83,12 @@ export function RecipeForm({
   recipeId,
   initial,
   storage,
+  allLabels,
 }: {
   recipeId?: string;
   initial?: RecipeFormValues;
   storage: StorageMode;
+  allLabels: readonly LabelOption[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -98,7 +100,7 @@ export function RecipeForm({
     initial?.cookingMinutes?.toString() ?? "",
   );
   const [servings, setServings] = useState(initial?.servings?.toString() ?? "");
-  const [labels, setLabels] = useState<RecipeLabel[]>(initial?.labels ?? []);
+  const [labels, setLabels] = useState<string[]>(initial?.labels ?? []);
   const [images, setImages] = useState<MediaItem[]>(() =>
     (initial?.images ?? []).map(mediaFromUrl),
   );
@@ -321,22 +323,22 @@ export function RecipeForm({
           className="flex flex-wrap gap-2"
         >
           <legend className="sr-only">Labels</legend>
-          {LABELS.map((l) => (
+          {allLabels.map((l) => (
             <label
-              key={l.value}
+              key={l.slug}
               className="cursor-pointer rounded-full border px-3 py-1 text-sm transition-colors has-checked:border-primary has-checked:bg-primary has-checked:text-primary-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring/50 has-disabled:cursor-not-allowed has-disabled:opacity-40"
             >
               <input
                 type="checkbox"
                 className="sr-only"
                 // Once the limit is reached, only selected labels can change
-                disabled={atLabelLimit && !labels.includes(l.value)}
-                checked={labels.includes(l.value)}
+                disabled={atLabelLimit && !labels.includes(l.slug)}
+                checked={labels.includes(l.slug)}
                 onChange={(e) =>
                   setLabels((cur) =>
                     e.target.checked
-                      ? [...cur, l.value]
-                      : cur.filter((v) => v !== l.value),
+                      ? [...cur, l.slug]
+                      : cur.filter((v) => v !== l.slug),
                   )
                 }
               />

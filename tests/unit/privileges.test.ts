@@ -4,8 +4,11 @@ import {
   canBanUser,
   canChangeDisplayName,
   canChooseProfileVisibility,
+  canCreateLabel,
   canCreateRecipe,
   canDeleteAccount,
+  canDeleteAnyLabel,
+  canDeleteLabel,
   canDeleteOwnAccount,
   canModerateReview,
   canOpenDashboard,
@@ -14,6 +17,7 @@ import {
   hasPrivateProfile,
   isPrivilegeLevel,
   isStaff,
+  LABEL_DELETE_WINDOW_MS,
   LEVEL,
 } from "@/lib/privileges";
 import { canLikeRecipe, likeMode } from "@/lib/rules";
@@ -180,5 +184,50 @@ describe("private profiles", () => {
     expect(canChooseProfileVisibility(actor(LEVEL.CHEF, true))).toBe(false);
     expect(isStaff(actor(LEVEL.MODERATOR))).toBe(true);
     expect(isStaff(actor(LEVEL.CHEF))).toBe(false);
+  });
+});
+
+describe("labels", () => {
+  const now = new Date("2026-10-19T12:00:00Z");
+  const ago = (ms: number) => new Date(now.getTime() - ms);
+  const mine = (age: number) => ({ createdById: "me", createdAt: ago(age) });
+
+  it("chefs and up (not banned) can create labels", () => {
+    expect(canCreateLabel(null)).toBe(false);
+    expect(canCreateLabel(actor(LEVEL.USER))).toBe(false);
+    expect(canCreateLabel(actor(LEVEL.CHEF))).toBe(true);
+    expect(canCreateLabel(actor(LEVEL.MODERATOR))).toBe(true);
+    expect(canCreateLabel(actor(LEVEL.ADMIN))).toBe(true);
+    expect(canCreateLabel(actor(LEVEL.CHEF, true))).toBe(false);
+  });
+
+  it("creators can delete their label only within 15 minutes", () => {
+    const chef = actor(LEVEL.CHEF);
+    expect(LABEL_DELETE_WINDOW_MS).toBe(15 * 60 * 1000);
+    expect(canDeleteLabel(chef, mine(0), now)).toBe(true);
+    expect(canDeleteLabel(chef, mine(LABEL_DELETE_WINDOW_MS - 1), now)).toBe(
+      true,
+    );
+    expect(canDeleteLabel(chef, mine(LABEL_DELETE_WINDOW_MS), now)).toBe(false);
+    expect(canDeleteLabel(actor(LEVEL.MODERATOR), mine(60_000), now)).toBe(
+      true,
+    );
+    // Not while banned or demoted
+    expect(canDeleteLabel(actor(LEVEL.CHEF, true), mine(0), now)).toBe(false);
+    expect(canDeleteLabel(actor(LEVEL.USER), mine(0), now)).toBe(false);
+  });
+
+  it("only admins can delete others' or built-in labels", () => {
+    const others = { createdById: "someone", createdAt: now };
+    const builtIn = { createdById: null, createdAt: ago(365 * 86_400_000) };
+    expect(canDeleteLabel(actor(LEVEL.CHEF), others, now)).toBe(false);
+    expect(canDeleteLabel(actor(LEVEL.MODERATOR), others, now)).toBe(false);
+    expect(canDeleteLabel(actor(LEVEL.MODERATOR), builtIn, now)).toBe(false);
+    expect(canDeleteLabel(actor(LEVEL.ADMIN), others, now)).toBe(true);
+    expect(canDeleteLabel(actor(LEVEL.ADMIN), builtIn, now)).toBe(true);
+    expect(canDeleteLabel(actor(LEVEL.ADMIN), mine(86_400_000), now)).toBe(
+      true,
+    );
+    expect(canDeleteAnyLabel(actor(LEVEL.ADMIN, true))).toBe(false);
   });
 });
