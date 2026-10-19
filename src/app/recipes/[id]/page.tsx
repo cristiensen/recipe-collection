@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { DeleteRecipeButton } from "@/components/delete-recipe-button";
+import { IngredientChecklist } from "@/components/ingredient-checklist";
 import { LikeButton } from "@/components/like-button";
 import { LoginLink } from "@/components/login-link";
 import { PhotoGallery } from "@/components/photo-gallery";
@@ -215,31 +216,18 @@ export default async function RecipePage(props: PageProps<"/recipes/[id]">) {
       </p>
 
       <div className="grid gap-8 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        <section aria-labelledby="ingredients-heading">
-          <h2
-            id="ingredients-heading"
-            className="mb-3 border-b pb-2 text-xl font-semibold"
-          >
-            Ingredients
-          </h2>
-          <ul className="flex flex-col divide-y">
-            {recipe.ingredients.map((i) => (
-              <li key={i.id} className="flex gap-2 py-2">
-                {(i.quantity !== null || i.unit) && (
-                  <span className="shrink-0 font-medium tabular-nums">
-                    {[
-                      i.quantity !== null ? formatQuantity(i.quantity) : null,
-                      i.unit,
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                  </span>
-                )}
-                <span>{i.name}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <IngredientChecklist
+          recipeId={recipe.id}
+          canCook={!!user}
+          ingredients={recipe.ingredients.map((i) => ({
+            id: i.id,
+            name: i.name,
+            amount:
+              [i.quantity !== null ? formatQuantity(i.quantity) : null, i.unit]
+                .filter(Boolean)
+                .join(" ") || null,
+          }))}
+        />
 
         <section aria-labelledby="steps-heading">
           <h2

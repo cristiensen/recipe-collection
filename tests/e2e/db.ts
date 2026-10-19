@@ -65,6 +65,8 @@ export function insertRecipe(
     /** Label slugs. */
     labels?: string[];
     cookingMinutes?: number;
+    /** Ingredient names, in order. */
+    ingredients?: string[];
   } = {},
 ) {
   return withDb(async (db) => {
@@ -87,10 +89,12 @@ export function insertRecipe(
         [randomUUID(), id, url, position],
       );
     }
-    await db.query(
-      `INSERT INTO "Ingredient" (id, "recipeId", position, name) VALUES ($1, $2, 0, 'Water')`,
-      [randomUUID(), id],
-    );
+    for (const [position, name] of (media.ingredients ?? ["Water"]).entries()) {
+      await db.query(
+        `INSERT INTO "Ingredient" (id, "recipeId", position, name) VALUES ($1, $2, $3, $4)`,
+        [randomUUID(), id, position, name],
+      );
+    }
     await db.query(
       `INSERT INTO "Step" (id, "recipeId", position, text) VALUES ($1, $2, 0, 'Boil.')`,
       [randomUUID(), id],
