@@ -13,6 +13,9 @@ test.beforeAll(async () => {
   await createUser(email("chef"), `Hidden Chef ${run}`, 2, password);
   await createUser(email("fan"), `Hidden Fan ${run}`, 1, password);
   recipeUrl = `/recipes/${await insertRecipe(email("author"), title)}`;
+  // A public recipe so the feed isn't empty (and unrendered) for guests once
+  // the one above is hidden, e.g. on CI's fresh database
+  await insertRecipe(email("chef"), `E2E Public Recipe ${run}`);
   authorId = await userId(email("author"));
 });
 test.afterAll(() => deleteUsers(`%-${run}@e2e.test`));
@@ -71,7 +74,9 @@ test("the author hides a recipe from the public on its page", async ({
   await expect(chef.getByTestId("not-public-notice")).toHaveText(
     /This recipe is not public/,
   );
-  await expect(chef.getByRole("switch")).toHaveCount(0);
+  await expect(
+    chef.getByRole("switch", { name: `${title} is public` }),
+  ).toHaveCount(0);
   await chef.context().close();
 });
 

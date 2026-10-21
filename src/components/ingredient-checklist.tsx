@@ -157,7 +157,7 @@ export function IngredientChecklist({
               >
                 {toBuy === 0
                   ? "You have everything. Happy cooking!"
-                  : `Tick what you have. ${have} of ${ingredients.length} ready, ${toBuy} to buy.`}
+                  : `Tick what you already have. ${have} of ${ingredients.length} ready, ${toBuy} to buy.`}
               </p>
             )}
 
