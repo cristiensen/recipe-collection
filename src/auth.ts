@@ -8,6 +8,19 @@ import { logInSchema } from "@/lib/validation";
 
 const THIRTY_DAYS = 30 * 24 * 60 * 60;
 
+declare module "next-auth" {
+  interface Session {
+    /** When this session logged in (ms); compared with `User.passwordChangedAt`. */
+    loginAt?: number;
+  }
+}
+
+declare module "@auth/core/jwt" {
+  interface JWT {
+    loginAt?: number;
+  }
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // The adapter stores users/accounts so OAuth providers can be added later.
   // The Prisma 7 client is structurally compatible with the adapter's v6 types.
@@ -52,11 +65,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     jwt({ token, user }) {
-      if (user?.id) token.sub = user.id;
+      if (user?.id) {
+        token.sub = user.id;
+        token.loginAt = Date.now();
+      }
       return token;
     },
     session({ session, token }) {
       if (token.sub) session.user.id = token.sub;
+      session.loginAt = token.loginAt;
       return session;
     },
   },

@@ -1,3 +1,10 @@
+/** The site's public origin, for absolute links (social previews, emails). */
+export const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3000");
+
 export function loginHref(returnTo: string) {
   return `/login?callbackUrl=${encodeURIComponent(returnTo)}`;
 }

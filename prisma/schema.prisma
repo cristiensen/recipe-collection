@@ -10,23 +10,25 @@ datasource db {
 // ───────────────────────── Auth.js (Prisma adapter) ─────────────────────────
 
 model User {
-  id             String           @id @default(cuid())
-  name           String
-  email          String           @unique
-  emailVerified  DateTime?
-  image          String?
-  passwordHash   String?
+  id                String           @id @default(cuid())
+  name              String
+  email             String           @unique
+  emailVerified     DateTime?
+  image             String?
+  passwordHash      String?
+  /// Set by a password reset; sessions that logged in earlier are signed out.
+  passwordChangedAt DateTime?
   /// Theme chosen while logged in; null = never chosen (follow the cookie / app default).
-  theme          ThemePreference?
+  theme             ThemePreference?
   /// 1 = user, 2 = chef, 10 = moderator, 100 = admin. CHECK constraint in the migration.
-  privilegeLevel Int              @default(1)
+  privilegeLevel    Int              @default(1)
   /// Chefs and up can hide their profile, recipes and reviews from everyone
   /// except themselves and moderators/admins.
-  isPrivate      Boolean          @default(false)
+  isPrivate         Boolean          @default(false)
   /// Set while banned: the account becomes read-only.
-  bannedAt       DateTime?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  bannedAt          DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   accounts Account[]
   sessions Session[]
@@ -117,7 +119,7 @@ model Recipe {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  author      User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author      User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
   images      RecipeImage[]
   ingredients Ingredient[]
   steps       Step[]

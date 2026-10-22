@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   changePasswordSchema,
   displayNameSchema,
+  forgotPasswordSchema,
   type RecipeInput,
   recipeSchema,
+  resetPasswordSchema,
   reviewSchema,
   signUpSchema,
   toFieldErrors,
@@ -203,5 +205,39 @@ describe("change password validation", () => {
   it("trims display names and rejects empty ones", () => {
     expect(displayNameSchema.parse("  Ana  ")).toBe("Ana");
     expect(displayNameSchema.safeParse("   ").success).toBe(false);
+  });
+});
+
+describe("password reset validation", () => {
+  const valid = {
+    token: "abc",
+    password: "new-password",
+    confirm: "new-password",
+  };
+  it("normalises the email like sign-up", () => {
+    expect(forgotPasswordSchema.parse({ email: " Me@Example.com " })).toEqual({
+      email: "me@example.com",
+    });
+  });
+  it("accepts a matching new password", () => {
+    expect(resetPasswordSchema.safeParse(valid).success).toBe(true);
+  });
+  it("applies the sign-up length rules", () => {
+    const r = resetPasswordSchema.safeParse({
+      ...valid,
+      password: "short",
+      confirm: "short",
+    });
+    expect(r.success).toBe(false);
+  });
+  it("requires the confirmation to match", () => {
+    const r = resetPasswordSchema.safeParse({ ...valid, confirm: "other-one" });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(toFieldErrors(r.error).confirm).toBeDefined();
+  });
+  it("requires a token", () => {
+    expect(resetPasswordSchema.safeParse({ ...valid, token: "" }).success).toBe(
+      false,
+    );
   });
 });

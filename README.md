@@ -59,7 +59,7 @@ The same script works for recovery if no admin can log in.
 | `npm run seed:layout` | Add 15 dummy recipes for layout testing (`-- --remove` deletes them; photos display under `npm run dev` only) |
 | `npm run seed:demo` | Add 40 realistic demo recipes with photos (on Vercel Blob), reviews and likes (`-- --remove` deletes them) |
 | `npm run set-level -- <email> <1\|2\|10\|100>` | Set an account's privilege level directly in the database |
-| `npm run set-password -- <email>` | Set a new password for an account (asks for it without echoing; there is no reset email) |
+| `npm run set-password -- <email>` | Set a new password for an account (asks for it without echoing), e.g. for users the reset email can't reach |
 
 First e2e run: `npx playwright install chromium`.
 
@@ -125,6 +125,7 @@ Self-hosting elsewhere (or `next start` locally) also needs `AUTH_TRUST_HOST=tru
 ## Product decisions made during the build
 
 - **Sign-up:** email + password (the PRD left this open). The Prisma adapter and its tables are in place, so OAuth providers can be added later.
+- **Password reset:** "Forgot password?" on the login page emails a one-time link (valid 1 hour) through Resend (`RESEND_API_KEY`; without it, development prints the email to the server console). Only a SHA-256 hash of the token is stored, in Auth.js's `VerificationToken` table. The form answers the same whether or not the email is registered, and sends at most one email a minute per account. Resetting signs the user in and signs out their other sessions (`User.passwordChangedAt` vs. the session's login time, checked in `getCurrentUser`). Until a domain is verified in Resend, emails only reach the Resend account owner's own address.
 - **Media storage:** Vercel Blob (the PRD said "CDN like Sanity"). Browsers upload directly to Blob, with progress shown.
 - **Labels:** the PRD's draft list, stored as a Postgres enum. Changing the final list needs a migration.
 - **Theme:** dark blue by default, with a toggle in the header. Guests' choice is kept in a `theme` cookie. Logged-in users' choice is saved on their account (`User.theme`) and read on every page load, so it follows them across devices. At login a saved account choice wins; if the account never chose one, the guest's choice is adopted.

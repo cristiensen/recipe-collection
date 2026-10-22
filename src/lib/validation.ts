@@ -36,6 +36,21 @@ export const logInSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+export const forgotPasswordSchema = z.object({
+  email: signUpSchema.shape.email,
+});
+
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().min(1, "This reset link is incomplete"),
+    password: signUpSchema.shape.password,
+    confirm: z.string(),
+  })
+  .refine((d) => d.password === d.confirm, {
+    path: ["confirm"],
+    message: "Passwords don't match",
+  });
+
 // ──────────────────────────────── Recipes ────────────────────────────────
 
 export const ingredientSchema = z.object({

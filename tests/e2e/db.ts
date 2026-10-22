@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
 import pg from "pg";
 
@@ -200,4 +200,25 @@ export function fillLabels(total: number, prefix: string) {
     );
     return slugs;
   });
+}
+
+/** Stores a password reset token for the account, as the "Forgot password" form would. */
+export function insertResetToken(email: string, token: string) {
+  return withDb((db) =>
+    db.query(
+      `INSERT INTO "VerificationToken" (identifier, token, expires)
+       SELECT 'password-reset:' || id, $2, now() + interval '1 hour' FROM "User" WHERE email = $1`,
+      [email, createHash("sha256").update(token).digest("hex")],
+    ),
+  );
+}
+
+/** Deletes reset tokens left behind by deleted accounts. */
+export function deleteOrphanResetTokens() {
+  return withDb((db) =>
+    db.query(
+      `DELETE FROM "VerificationToken" t WHERE t.identifier LIKE 'password-reset:%'
+       AND NOT EXISTS (SELECT 1 FROM "User" u WHERE 'password-reset:' || u.id = t.identifier)`,
+    ),
+  );
 }

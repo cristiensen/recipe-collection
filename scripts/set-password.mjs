@@ -1,5 +1,5 @@
 // Sets a new password for an account directly in the database. Use it to
-// recover an account whose password is forgotten (there is no reset email):
+// recover an account the reset email can't reach:
 //   npm run set-password -- someone@example.com
 // The password is asked for without echoing, so it stays out of the shell
 // history. Rules match sign-up: 8–72 characters.

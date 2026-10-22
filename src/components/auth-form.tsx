@@ -85,6 +85,14 @@ export function AuthForm({
           required
         />
       </Field>
+      {mode === "login" && (
+        <Link
+          href="/forgot-password"
+          className="-mt-2 self-end text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+        >
+          Forgot password?
+        </Link>
+      )}
 
       <Button type="submit" disabled={pending} className="mt-2">
         {pending
@@ -109,7 +117,7 @@ export function AuthForm({
   );
 }
 
-function Field({
+export function Field({
   id,
   label,
   error,
